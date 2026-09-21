@@ -68,6 +68,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
+    // Silent session refresh on mount. `refresh` is async: every setState
+    // inside it runs after `await fetch` resolves (microtask), never
+    // synchronously within this effect body.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void refresh();
   }, [refresh]);
 

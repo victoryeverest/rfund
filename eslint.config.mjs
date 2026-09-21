@@ -44,7 +44,13 @@ const eslintConfig = [...nextCoreWebVitals, ...nextTypescript, {
     "no-useless-escape": "off",
   },
 }, {
-  ignores: ["node_modules/**", ".next/**", "out/**", "build/**", "next-env.d.ts", "examples/**", "skills"]
+  ignores: [
+    "node_modules/**", ".next/**", "out/**", "build/**", "next-env.d.ts",
+    "examples/**", "skills",
+    // Non-frontend parts of the monorepo (Django backend, docs, deliverables)
+    "backend/**", "docs/**", "upload/**", "download/**", "mini-services/**",
+    "tests/**", "scripts/**", "tool-results/**", ".zscripts/**",
+  ]
 }];
 
 export default eslintConfig;

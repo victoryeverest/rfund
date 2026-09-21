@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useQuery } from "@apollo/client";
+import { useQuery } from "@apollo/client/react";
 import { PublicHeader, PublicFooter } from "@/components/rfund/public-shell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";

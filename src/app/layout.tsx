@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 import { AuthProvider } from "@/lib/auth";
+import { ApolloWrapper } from "@/lib/apollo-provider";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -45,9 +46,9 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`${inter.variable} font-sans antialiased bg-background text-foreground`}>
-        <AuthProvider>
-          {children}
-        </AuthProvider>
+        <ApolloWrapper>
+          <AuthProvider>{children}</AuthProvider>
+        </ApolloWrapper>
         <Toaster />
       </body>
     </html>

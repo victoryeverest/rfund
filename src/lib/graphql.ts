@@ -12,8 +12,8 @@ import {
   HttpLink,
   InMemoryCache,
   from,
-  onError,
 } from "@apollo/client";
+import { onError } from "@apollo/client/link/error";
 
 let refreshing: Promise<string | null> | null = null;
 
