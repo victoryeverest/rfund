@@ -22,4 +22,21 @@ Stage Summary:
 - Repo: clean (350 source files), 2 commits added, push-ready artifacts in download/.
 - Frontend: all routes green, lint clean, Apollo v4 wiring correct.
 - Backend: rebuilding infra (redis done, pg in progress); next: ensure_services.sh → migrate → seed → verify GraphQL E2E.
-- TO PUSH: need user to provide remote URL + credentials (PAT or SSH); then `git remote add origin <url> && git push -u origin main`.
+---
+Task ID: 2
+Agent: Super Z (main)
+Task: Rebuild wiped infrastructure, bring backend online, end-to-end browser verification, rebuild push artifacts.
+
+Work Log:
+- /home/z/infra was wiped (no PG, no Redis, no sources). Downloaded + built Redis 7.2.5 and PostgreSQL 16.4 from source into /home/z/infra (no root needed; full external network confirmed).
+- MISHAP 2: shell operator precedence backgrounded the PG download before `cd` applied (tarball landed in cwd) and `&& ... &` chains killed background builds silently; partial tar extraction also broke configure. RECOVERED: dedicated build_pg.sh + nohup + foreground resumable make. Lesson: background long builds via script file, verify with ps + log growth, never trust chained `&`.
+- Ran scripts/ensure_services.sh: PG cluster init, migrations applied, demo data seeded, Django on :8000, Celery worker up.
+- Verified GraphQL E2E through the Next.js BFF proxy: savingsProjection(amount 1000, DAILY, 3-month window) → 92 calendar-accurate contributions, ₦92,000 total. (Note: `frequency` is String!, not enum — quote it in ad-hoc queries.)
+- Agent-browser verification: homepage renders fully, zero console errors; calculator interaction live-updates (₦2,000 → ₦184,000, 92 contributions, real dates); customer login (+2348012345001 / Customer#2026) → /app/dashboard with seeded plan RF-SAV-20260921-000001 (₦500 of ₦30,500, 1/61 paid); mobile viewport collapses nav correctly; footer uses flex min-h-screen + flex-1 main pattern (sticky on short, pushed on long). Screenshots: download/rfund-homepage-verified.png, rfund-app-savings-verified.png, rfund-homepage-mobile.png.
+- Rebuilt both git bundles with final tree (they predated the frontend fix commit).
+
+Stage Summary:
+- FULL STACK VERIFIED BROWSER→DB: all 30 routes 200, auth works, seeded data flows, lint clean, GraphQL correct.
+- Artifacts: download/rfund-repo-clean-2026-09-22.bundle (single-commit main, plain `git clone` verified), download/rfund-repo-2026-09-22.bundle (full history), README with push instructions.
+- Demo credentials: customers +2348012345001..0005 / Customer#2026; agent +2348000000100 / Agent#2026; admin +2348000000000 / Admin#2026.
+- BLOCKED (needs user): actual `git push` — no remote configured, no credentials. Provide remote URL + PAT/SSH key to push.
