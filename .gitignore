@@ -73,3 +73,7 @@ backend/file\:memorydb*
 
 # Internal tool caches
 tool-results/
+
+# Deliverables directory (bundles, exports) — keep only the README tracked
+download/*
+!download/README.md
