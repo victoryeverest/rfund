@@ -61,3 +61,22 @@ Stage Summary:
 - All prior dangling threads closed: repo hygiene, frontend fixes, E2E verification, artifacts, and now remote publication.
 - Note: earlier history commits (8fc63b8 and below) authored as "Z User <z@container>"; only new commits carry victoryeverest identity. History rewrite possible if full re-attribution desired.
 ---
+Task ID: 4
+Agent: Super Z (main)
+Task: "fix the rest" — full history re-attribution to victoryeverest, strip junk from public history, add README/LICENSE, set repo metadata.
+
+Work Log:
+- Audited: no PAT/.env/secret leaks anywhere in history; Django settings fully env-externalized (production rejects placeholder secrets).
+- Added root README.md (architecture, quickstart, demo accounts, GraphQL example, verification status), MIT LICENSE, updated download/README.md (push complete). Commit e84e60f (pre-rewrite hash).
+- Audited history junk: 9,698 paths (backend/.venv 9.5k, 157 __pycache__, 2 sqlite dev DBs, empty .env, .zscripts/dev.pid, 2 tool-results). No node_modules.
+- Rewrote full history via filter-branch (scripts/rewrite_history.sh, deleted after use): env-filter (all 10 commits → victoryeverest <victoryeverest@users.noreply.github.com>), msg-filter (reworded 2 UUID-named commits), index-filter (stripped all junk paths), --prune-empty.
+- MISHAP AVERTED: post-rewrite tree hash differed from pre-rewrite — root cause: .zscripts/dev.pid was STILL tracked in current tree; its removal was a legitimate fix (verified via tree diff = exactly that 1 file). Junk-scan "9,698 remaining" was refs/original backup ref; main history = 0 junk.
+- Purged refs/original + reflogs, gc --prune=now: .git 48M → 5.0M, fsck clean, 383 files.
+- Force-pushed: remote main cca3e14 → 3236a4a, ls-remote verified identical.
+- GitHub API: all 10 commits attributed to victoryeverest account (author.login verified). Repo license detected as MIT, default branch main, public.
+- BLOCKED (token perms): PATCH description + PUT topics both 403 — fine-grained PAT lacks Administration/Metadata write. User must set About/topics in GitHub UI or grant token permissions.
+
+Stage Summary:
+- Public repo final state: https://github.com/victoryeverest/rfund — main @ 3236a4a, 10 commits, all victoryeverest, 5MB history, zero junk, README + MIT LICENSE live.
+- Remaining (user, ~30s): repo About description + topics in GitHub web UI (or re-issue PAT with admin write).
+---
