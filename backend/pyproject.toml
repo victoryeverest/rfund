@@ -1,0 +1,25 @@
+[project]
+name = "rfund-backend"
+version = "1.0.0"
+description = "RFUND — digital financial infrastructure for underserved communities (Django backend)"
+requires-python = ">=3.12"
+
+[tool.ruff]
+line-length = 110
+target-version = "py312"
+exclude = [".venv", "node_modules", "migrations"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "UP", "B"]
+ignore = ["E501", "B008", "N818", "N806"]
+
+[tool.black]
+line-length = 110
+target-version = ["py312"]
+extend-exclude = "migrations"
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "config.settings"
+python_files = ["test_*.py"]
+addopts = "-q"
+testpaths = ["tests"]

@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>RFUND | Rural Business Financing Platform</title>
+    <meta
+      name="description"
+      content="RFUND helps rural business owners and farmers save consistently, access rural loans, and apply for FarmerCash support."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="brand" href="#top" aria-label="RFUND home">
+        <span class="brand-mark">R</span>
+        <span>RFUND</span>
+      </a>
+      <nav class="main-nav" aria-label="Main navigation">
+        <a href="#products">Services</a>
+        <a href="#savings">Savings</a>
+        <a href="#loans">Loans</a>
+        <a href="#payments">Payments</a>
+      </nav>
+      <a class="header-action" href="#join">Open account</a>
+    </header>
+
+    <main id="top">
+      <section class="hero">
+        <img src="assets/rfund-hero.png" alt="" class="hero-image" />
+        <div class="hero-overlay"></div>
+        <div class="hero-content">
+          <p class="eyebrow">Rural Business Financing Platform</p>
+          <h1>RFUND</h1>
+          <p class="hero-copy">
+            Digital savings, small business loans, and farmer cash support for rural traders,
+            artisans, cooperatives, and smallholder farmers.
+          </p>
+          <div class="hero-actions">
+            <a class="button primary" href="#join">Start saving</a>
+            <a class="button secondary" href="#products">Explore services</a>
+          </div>
+          <dl class="trust-strip" aria-label="Platform highlights">
+            <div>
+              <dt>Daily</dt>
+              <dd>thrift collection</dd>
+            </div>
+            <div>
+              <dt>USSD</dt>
+              <dd>offline access</dd>
+            </div>
+            <div>
+              <dt>Agents</dt>
+              <dd>local support</dd>
+            </div>
+          </dl>
+        </div>
+      </section>
+
+      <section class="section intro" aria-labelledby="intro-title">
+        <div>
+          <p class="eyebrow">Built for rural finance</p>
+          <h2 id="intro-title">Simple enough for daily use. Structured enough for real growth.</h2>
+        </div>
+        <p>
+          RFUND helps people save daily, weekly, or monthly, then withdraw at the end of a
+          quarterly, bi-yearly, or yearly tenure. It also gives rural entrepreneurs and
+          smallholder farmers a clear path to apply for responsible, collateral-free financing.
+        </p>
+      </section>
+
+      <section class="section product-grid" id="products" aria-label="RFUND services">
+        <article class="product-card">
+          <div class="icon-badge">A</div>
+          <h3>Digital Ajo</h3>
+          <p>
+            A modern version of traditional rotating savings groups, using mobile payments,
+            USSD codes, and trusted local agents for secure thrift collection.
+          </p>
+          <ul>
+            <li>Daily, weekly, or monthly contributions</li>
+            <li>Quarterly, bi-yearly, or yearly payout tenure</li>
+            <li>Member records and payment receipts</li>
+          </ul>
+        </article>
+        <article class="product-card">
+          <div class="icon-badge">L</div>
+          <h3>Rural Loans</h3>
+          <p>
+            Small financing for village shops, tailoring businesses, food processing, petty
+            trading, and other local income-generating work.
+          </p>
+          <ul>
+            <li>Simple loan application</li>
+            <li>Business-purpose review</li>
+            <li>Repayment plans matched to income</li>
+          </ul>
+        </article>
+        <article class="product-card">
+          <div class="icon-badge">F</div>
+          <h3>FarmerCash</h3>
+          <p>
+            Collateral-free seasonal loans for smallholder farmers who need support for seeds,
+            fertilizer, labor, harvest, transport, and storage.
+          </p>
+          <ul>
+            <li>Farm-cycle repayment options</li>
+            <li>Cooperative and agent verification</li>
+            <li>Production-focused support</li>
+          </ul>
+        </article>
+      </section>
+
+      <section class="section split" id="savings">
+        <div class="panel savings-panel">
+          <p class="eyebrow">Savings planner</p>
+          <h2>Plan your Digital Ajo contribution</h2>
+          <form class="planner" id="savingsForm">
+            <label>
+              Contribution amount
+              <input id="amount" type="number" min="100" step="100" value="1000" />
+            </label>
+            <label>
+              Contribution frequency
+              <select id="frequency">
+                <option value="daily">Daily</option>
+                <option value="weekly">Weekly</option>
+                <option value="monthly">Monthly</option>
+              </select>
+            </label>
+            <label>
+              Withdrawal tenure
+              <select id="tenure">
+                <option value="quarterly">Quarterly</option>
+                <option value="bi-yearly">Bi-yearly</option>
+                <option value="yearly">Yearly</option>
+              </select>
+            </label>
+            <button class="button primary" type="submit">Calculate payout</button>
+          </form>
+        </div>
+        <aside class="result-card" aria-live="polite">
+          <span>Estimated payout</span>
+          <strong id="payout">₦91,000</strong>
+          <p id="payoutNote">Based on ₦1,000 daily for 91 days.</p>
+          <button class="button full" data-open-payment>Fund this plan</button>
+        </aside>
+      </section>
+
+      <section class="section split reverse" id="loans">
+        <div>
+          <p class="eyebrow">Loan access</p>
+          <h2>Apply for business or farm financing in plain steps.</h2>
+          <p>
+            RFUND can route applications through agents, cooperative leaders, and mobile
+            verification so users without full banking access still have a practical way to apply.
+          </p>
+          <div class="step-list">
+            <span>1. Choose loan type</span>
+            <span>2. Submit business or farm details</span>
+            <span>3. Verify through agent or cooperative</span>
+            <span>4. Receive approved funds</span>
+          </div>
+        </div>
+        <form class="panel loan-form" id="loanForm">
+          <label>
+            Loan product
+            <select id="loanProduct">
+              <option>Rural Loans</option>
+              <option>FarmerCash</option>
+            </select>
+          </label>
+          <label>
+            Applicant name
+            <input id="applicantName" type="text" placeholder="Full name" required />
+          </label>
+          <label>
+            Phone number
+            <input id="phone" type="tel" placeholder="0800 000 0000" required />
+          </label>
+          <label>
+            Amount needed
+            <input id="loanAmount" type="number" min="5000" step="1000" value="50000" />
+          </label>
+          <label>
+            Purpose
+            <textarea id="purpose" rows="3" placeholder="Shop stock, seeds, equipment..." required></textarea>
+          </label>
+          <button class="button primary" type="submit">Submit application</button>
+          <p class="form-status" id="loanStatus" role="status"></p>
+        </form>
+      </section>
+
+      <section class="section payments" id="payments">
+        <div>
+          <p class="eyebrow">Payment ready</p>
+          <h2>Multiple ways to pay, collect, and confirm savings.</h2>
+        </div>
+        <div class="payment-options">
+          <button data-method="Card / Wallet">Card / Wallet</button>
+          <button data-method="Bank Transfer">Bank Transfer</button>
+          <button data-method="USSD Code">USSD Code</button>
+          <button data-method="Agent Collection">Agent Collection</button>
+        </div>
+        <p class="payment-note">
+          Live deployment can connect these options to Paystack, Flutterwave, Monnify, bank
+          transfer, SMS, USSD, and agent dashboards once provider accounts and compliance details
+          are ready.
+        </p>
+      </section>
+
+      <section class="section join" id="join">
+        <div>
+          <p class="eyebrow">Start with RFUND</p>
+          <h2>Open a savings account for yourself, your cooperative, or your customer group.</h2>
+        </div>
+        <form class="join-form" id="joinForm">
+          <input id="joinName" type="text" placeholder="Name or group name" required />
+          <input id="joinPhone" type="tel" placeholder="Phone number" required />
+          <select id="joinInterest">
+            <option>Digital Ajo</option>
+            <option>Rural Loans</option>
+            <option>FarmerCash</option>
+          </select>
+          <button class="button primary" type="submit">Create profile</button>
+        </form>
+        <p class="form-status" id="joinStatus" role="status"></p>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <strong>RFUND</strong>
+      <span>Rural Business Financing Platform</span>
+      <span>Agent code: *777*RFUND#</span>
+    </footer>
+
+    <dialog class="payment-modal" id="paymentModal" aria-labelledby="paymentTitle">
+      <form method="dialog">
+        <button class="close-button" aria-label="Close payment window">×</button>
+      </form>
+      <h2 id="paymentTitle">Fund your RFUND plan</h2>
+      <p id="paymentSummary">Choose how you want to make this contribution.</p>
+      <div class="modal-methods">
+        <button data-method="Card / Wallet">Card / Wallet</button>
+        <button data-method="Bank Transfer">Bank Transfer</button>
+        <button data-method="USSD Code">USSD Code</button>
+        <button data-method="Agent Collection">Agent Collection</button>
+      </div>
+      <p class="form-status" id="paymentStatus" role="status"></p>
+    </dialog>
+
+    <script src="app.js"></script>
+  </body>
+</html>

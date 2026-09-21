@@ -1,0 +1,5145 @@
+# RFUND
+
+## Master Engineering Specification
+
+### Django + GraphQL + PostgreSQL + React/Next.js Web Platform
+
+---
+
+# 0. ROLE
+
+You are the principal engineering agent responsible for architecting and implementing the RFUND platform.
+
+You are not being asked to create a prototype, mockup, demo, CRUD application, or visually convincing frontend.
+
+You are building the foundation of a production-grade financial technology platform intended for rural and underserved communities in Nigeria.
+
+The engineering standard is:
+
+> **No silent assumptions. No placeholder financial logic. No fake integrations. No untested money movement. No incomplete core workflows. No destructive shortcuts.**
+
+You must think like a combined:
+
+* Principal Software Architect
+* Senior Django Engineer
+* Fintech Backend Engineer
+* Financial Systems Engineer
+* GraphQL Architect
+* Security Engineer
+* QA Engineer
+* DevOps Engineer
+* Product Engineer
+* UX Engineer
+* Database Architect
+
+The system must be designed so that mobile applications, web applications, USSD, agent applications, partner systems, and future financial integrations can all use the same backend domain logic.
+
+---
+
+# 1. PRODUCT
+
+The product is:
+
+> **RFUND — digital financial infrastructure for underserved communities.**
+
+RFUND initially targets rural and semi-urban communities in Nigeria.
+
+The initial platform consists of:
+
+1. Customer accounts
+2. Identity/KYC
+3. Digital Ajo savings
+4. Savings goals
+5. Payments
+6. Transaction history
+7. Financial ledger
+8. Agents
+9. Agent operations
+10. Cooperatives
+11. Rural loans
+12. FarmerCash
+13. Loan repayment
+14. Notifications
+15. Risk management
+16. Fraud monitoring
+17. Reconciliation
+18. Reporting
+19. Administration
+20. Audit
+21. GraphQL API
+22. Web application
+
+The architecture must also prepare for:
+
+* USSD
+* Flutter mobile application
+* WhatsApp
+* bank integrations
+* additional payment providers
+* agricultural partners
+* insurance partners
+* institutional funders
+* NGO programs
+* development finance programs
+* future financial products
+
+---
+
+# 2. CRITICAL REGULATORY PRINCIPLE
+
+Do NOT assume RFUND itself is a licensed deposit-taking institution, bank, microfinance bank, lender, payment institution, or investment manager.
+
+The software must separate:
+
+### RFUND technology/platform
+
+from:
+
+### Licensed financial/payment partners
+
+The architecture must allow regulated activities to be performed by appropriately licensed partners where required.
+
+Do not invent legal permissions.
+
+Do not describe RFUND as a bank.
+
+Do not represent customer balances as legally protected deposits unless the actual regulatory/partner structure supports that.
+
+Implement configurable financial-provider abstractions so regulated financial services can later be connected to appropriate licensed institutions.
+
+Create documentation describing regulatory assumptions and explicitly mark them as requiring legal/compliance confirmation.
+
+---
+
+# 3. NON-NEGOTIABLE ENGINEERING PRINCIPLES
+
+## 3.1 Financial data is immutable
+
+Never delete financial transactions.
+
+Never directly modify historical ledger entries.
+
+Corrections must happen through:
+
+* reversal
+* adjustment
+* correction transaction
+* compensating ledger entry
+
+Every correction must record:
+
+* actor
+* timestamp
+* reason
+* original transaction
+* corrective transaction
+* authorization
+
+---
+
+## 3.2 Never calculate financial balances by blindly incrementing a database field
+
+Do NOT implement:
+
+```python
+account.balance += amount
+```
+
+as the authoritative financial mechanism.
+
+Balances must derive from the ledger or a carefully maintained ledger-backed balance projection.
+
+The ledger is authoritative.
+
+---
+
+## 3.3 Double-entry accounting
+
+Every posted financial transaction must satisfy:
+
+```text
+TOTAL DEBITS = TOTAL CREDITS
+```
+
+The system must reject any transaction that violates this invariant.
+
+Use decimal monetary arithmetic.
+
+Never use floating point for money.
+
+Use:
+
+```python
+Decimal
+```
+
+and PostgreSQL numeric/decimal fields.
+
+---
+
+## 3.4 Currency
+
+Initial currency:
+
+```text
+NGN
+```
+
+Design the monetary system so additional currencies can eventually be supported.
+
+Every money amount must have an explicit currency.
+
+---
+
+## 3.5 Idempotency
+
+Every externally initiated financial operation must support idempotency.
+
+This applies to:
+
+* Paystack webhooks
+* payment initialization
+* payment verification
+* transfers
+* payouts
+* loan disbursement
+* repayment
+* agent cash transactions
+* scheduled jobs
+* notification jobs
+
+Repeated requests must not create duplicate financial effects.
+
+---
+
+## 3.6 State machines
+
+Financial objects must have explicit states.
+
+Do not implement workflows using random Boolean fields.
+
+Examples:
+
+```text
+PENDING
+PROCESSING
+SUCCESS
+FAILED
+REVERSED
+CANCELLED
+SETTLED
+```
+
+Loan:
+
+```text
+DRAFT
+SUBMITTED
+UNDER_REVIEW
+VERIFICATION_REQUIRED
+APPROVED
+OFFERED
+ACCEPTED
+DISBURSEMENT_PENDING
+DISBURSED
+ACTIVE
+DELINQUENT
+DEFAULTED
+RESTRUCTURED
+COMPLETED
+REJECTED
+CANCELLED
+```
+
+KYC:
+
+```text
+NOT_STARTED
+PENDING
+UNDER_REVIEW
+VERIFIED
+REJECTED
+EXPIRED
+```
+
+---
+
+# 4. REPOSITORY-FIRST REQUIREMENT
+
+Before writing code:
+
+1. Inspect the entire existing repository.
+2. Inspect all existing frontend files.
+3. Inspect the supplied RFUND prototype.
+4. Identify existing features.
+5. Identify reusable design patterns.
+6. Identify existing assets.
+7. Identify existing business terminology.
+8. Identify inconsistencies.
+9. Produce an architecture assessment.
+10. Produce an implementation plan.
+11. Only then begin implementation.
+
+Do not destroy useful existing work without documenting why.
+
+Do not blindly rewrite an existing repository.
+
+If an existing implementation conflicts with this specification, this specification takes precedence unless there is a documented technical reason to deviate.
+
+---
+
+# 5. TECHNOLOGY STACK
+
+## Backend
+
+Use:
+
+```text
+Python
+Django
+Django REST only where technically necessary
+Strawberry GraphQL
+PostgreSQL
+Redis
+Celery
+```
+
+The primary application API must be GraphQL.
+
+---
+
+## Frontend
+
+Use:
+
+```text
+Next.js
+React
+TypeScript
+Tailwind CSS
+GraphQL client
+```
+
+Prefer:
+
+```text
+Apollo Client
+```
+
+or another mature GraphQL client if there is a documented reason.
+
+Do not duplicate backend business logic in the frontend.
+
+---
+
+## Infrastructure
+
+Use:
+
+```text
+Docker
+Docker Compose
+Nginx
+PostgreSQL
+Redis
+Celery worker
+Celery beat
+Object storage
+```
+
+Prepare for production deployment.
+
+---
+
+# 6. MONOREPO STRUCTURE
+
+Use a clean monorepo:
+
+```text
+rfund/
+│
+├── backend/
+│   ├── manage.py
+│   ├── config/
+│   ├── apps/
+│   │   ├── accounts/
+│   │   ├── identity/
+│   │   ├── customers/
+│   │   ├── organizations/
+│   │   ├── agents/
+│   │   ├── cooperatives/
+│   │   ├── savings/
+│   │   ├── loans/
+│   │   ├── farmers/
+│   │   ├── agriculture/
+│   │   ├── payments/
+│   │   ├── ledger/
+│   │   ├── settlements/
+│   │   ├── notifications/
+│   │   ├── ussd/
+│   │   ├── risk/
+│   │   ├── fraud/
+│   │   ├── documents/
+│   │   ├── reporting/
+│   │   ├── support/
+│   │   ├── audit/
+│   │   └── core/
+│   │
+│   ├── graphql/
+│   ├── integrations/
+│   │   ├── payments/
+│   │   ├── messaging/
+│   │   ├── identity/
+│   │   ├── banking/
+│   │   └── ussd/
+│   │
+│   ├── tests/
+│   ├── requirements/
+│   └── pyproject.toml
+│
+├── web/
+│   ├── app/
+│   ├── components/
+│   ├── features/
+│   ├── lib/
+│   ├── graphql/
+│   ├── hooks/
+│   ├── types/
+│   ├── tests/
+│   └── package.json
+│
+├── docs/
+├── infrastructure/
+├── docker-compose.yml
+├── .env.example
+├── README.md
+└── Makefile
+```
+
+Do not create a monolithic `models.py` containing the entire financial system.
+
+Keep domain boundaries clear.
+
+---
+
+# 7. DOMAIN ARCHITECTURE
+
+The backend must use a layered architecture.
+
+```text
+GraphQL
+   ↓
+Application Services
+   ↓
+Domain Logic
+   ↓
+Repositories / ORM
+   ↓
+PostgreSQL
+```
+
+GraphQL resolvers must NOT contain complex financial business logic.
+
+Example:
+
+```text
+GraphQL mutation
+        ↓
+SavingsService
+        ↓
+PaymentService
+        ↓
+LedgerService
+        ↓
+Database
+```
+
+USSD must eventually use the same application services.
+
+Mobile must eventually use the same GraphQL API.
+
+Web must use the same GraphQL API.
+
+There must be one source of truth for business logic.
+
+---
+
+# 8. CORE DATA MODEL
+
+Implement proper UUID primary keys.
+
+Use separate human-readable reference numbers.
+
+Example:
+
+```text
+id:
+UUID
+
+reference:
+RF-SAV-20260921-000001
+```
+
+Never expose sequential database IDs as the main public identifier.
+
+---
+
+# 9. CUSTOMER MODEL
+
+Customer must support:
+
+```text
+id
+public_id
+customer_reference
+first_name
+middle_name
+last_name
+phone
+email
+date_of_birth
+gender
+occupation
+address
+state
+lga
+community
+preferred_language
+status
+created_at
+updated_at
+```
+
+Do not collect sensitive information unless necessary.
+
+---
+
+# 10. USER ACCOUNT MODEL
+
+Separate authentication identity from financial customer profile.
+
+Support:
+
+```text
+User
+CustomerProfile
+AgentProfile
+StaffProfile
+OrganizationProfile
+```
+
+A user may have one or more roles.
+
+Implement role-based access control.
+
+Do not rely solely on frontend role hiding.
+
+Every protected GraphQL resolver must perform authorization.
+
+---
+
+# 11. ROLE SYSTEM
+
+Support at minimum:
+
+```text
+CUSTOMER
+AGENT
+AGENT_SUPERVISOR
+FIELD_OFFICER
+LOAN_OFFICER
+KYC_OFFICER
+RISK_OFFICER
+FINANCE_OFFICER
+SUPPORT_AGENT
+COOPERATIVE_ADMIN
+REGIONAL_MANAGER
+ADMIN
+SUPER_ADMIN
+```
+
+Permissions must be granular.
+
+Examples:
+
+```text
+customer.read
+customer.update
+kyc.review
+loan.review
+loan.approve
+loan.disburse
+payment.view
+ledger.view
+ledger.post
+ledger.reverse
+agent.manage
+settlement.approve
+report.view
+audit.view
+```
+
+Never allow a general `is_staff=True` shortcut to authorize sensitive financial operations.
+
+---
+
+# 12. IDENTITY AND KYC
+
+Implement:
+
+```text
+IdentityDocument
+KYCProfile
+KYCVerification
+KYCReview
+KYCStatus
+```
+
+Support configurable identity types:
+
+```text
+NIN
+BVN
+PASSPORT
+DRIVERS_LICENSE
+VOTERS_CARD
+OTHER
+```
+
+Do not hard-code external verification vendors.
+
+Create an abstraction:
+
+```text
+IdentityVerificationProvider
+```
+
+with provider adapters.
+
+Store:
+
+* verification status
+* provider
+* provider reference
+* timestamp
+* result
+* reviewer
+* failure reason
+
+Sensitive documents must not be publicly accessible.
+
+Use private object storage.
+
+---
+
+# 13. CUSTOMER ACCOUNT STRUCTURE
+
+Separate financial accounts from user profiles.
+
+Examples:
+
+```text
+Savings Account
+Loan Receivable Account
+Agent Float Account
+Settlement Account
+Expense Account
+Income Account
+```
+
+Create:
+
+```text
+FinancialAccount
+AccountType
+AccountStatus
+AccountHolder
+Currency
+```
+
+The ledger posts against financial accounts.
+
+---
+
+# 14. LEDGER
+
+This is the most important backend subsystem.
+
+Create:
+
+```text
+Ledger
+LedgerAccount
+LedgerTransaction
+LedgerEntry
+LedgerBatch
+AccountingPeriod
+BalanceSnapshot
+```
+
+Every ledger transaction has:
+
+```text
+reference
+transaction_type
+status
+currency
+description
+external_reference
+idempotency_key
+created_by
+created_at
+posted_at
+```
+
+Every entry:
+
+```text
+transaction
+account
+direction
+amount
+currency
+metadata
+```
+
+Direction:
+
+```text
+DEBIT
+CREDIT
+```
+
+Enforce:
+
+```text
+sum(debits) == sum(credits)
+```
+
+before posting.
+
+---
+
+# 15. LEDGER TRANSACTION LIFECYCLE
+
+Implement:
+
+```text
+DRAFT
+↓
+VALIDATING
+↓
+POSTED
+```
+
+or:
+
+```text
+DRAFT
+↓
+REJECTED
+```
+
+Once posted, ledger transactions are immutable.
+
+Reversals create new transactions.
+
+---
+
+# 16. LEDGER EXAMPLES
+
+Savings deposit:
+
+```text
+DR Settlement Account       ₦1,000
+CR Customer Savings         ₦1,000
+```
+
+Loan disbursement:
+
+```text
+DR Loan Receivable          ₦50,000
+CR Settlement Account       ₦50,000
+```
+
+Loan repayment:
+
+```text
+DR Settlement Account       ₦5,000
+CR Loan Principal           ₦4,500
+CR Interest Income          ₦500
+```
+
+The exact accounting treatment must be configurable according to the final financial/legal model.
+
+---
+
+# 17. SAVINGS
+
+Create:
+
+```text
+SavingsProduct
+SavingsAccount
+SavingsPlan
+SavingsSchedule
+SavingsContribution
+SavingsPayout
+SavingsGoal
+```
+
+---
+
+# 18. DIGITAL AJO
+
+Support:
+
+```text
+DAILY
+WEEKLY
+MONTHLY
+QUARTERLY
+BIYEARLY
+YEARLY
+```
+
+A savings plan must contain:
+
+```text
+product
+customer
+amount
+frequency
+start_date
+end_date
+status
+payout_policy
+```
+
+Do not approximate calendar schedules using fixed day multipliers.
+
+Generate actual contribution dates.
+
+For example:
+
+Monthly:
+
+```text
+1 Jan
+1 Feb
+1 Mar
+1 Apr
+```
+
+not:
+
+```text
+every 30.4167 days
+```
+
+---
+
+# 19. SAVINGS SCHEDULE
+
+Generate actual scheduled contributions.
+
+Each schedule item:
+
+```text
+due_date
+amount
+status
+paid_at
+payment_reference
+```
+
+Statuses:
+
+```text
+UPCOMING
+DUE
+PAID
+MISSED
+WAIVED
+CANCELLED
+```
+
+---
+
+# 20. SAVINGS GOALS
+
+Allow:
+
+```text
+Goal name
+Target amount
+Current amount
+Target date
+Contribution frequency
+Contribution amount
+```
+
+Examples:
+
+```text
+School fees
+Farm inputs
+Business stock
+Emergency fund
+Wedding
+Household
+```
+
+---
+
+# 21. SAVINGS CALCULATIONS
+
+All calculations must happen server-side.
+
+Never trust frontend calculations.
+
+Frontend may display projections, but backend is authoritative.
+
+Create tests for:
+
+* daily
+* weekly
+* monthly
+* quarterly
+* biannual
+* yearly
+* leap years
+* month-end dates
+* February
+* start/end date boundaries
+* missed payments
+* early completion
+* cancellation
+* partial payments
+
+---
+
+# 22. PAYMENTS ABSTRACTION
+
+Do not tightly couple the entire application to Paystack.
+
+Create:
+
+```text
+PaymentProvider
+```
+
+interface.
+
+Methods should include concepts such as:
+
+```text
+initialize_payment
+verify_payment
+create_transfer
+verify_transfer
+get_transaction
+```
+
+Create:
+
+```text
+PaystackProvider
+```
+
+as the initial implementation.
+
+Prepare for additional providers later.
+
+---
+
+# 23. PAYSTACK
+
+Implement Paystack securely.
+
+Use environment variables:
+
+```text
+PAYSTACK_SECRET_KEY
+PAYSTACK_PUBLIC_KEY
+PAYSTACK_WEBHOOK_SECRET
+```
+
+Never expose secret keys to frontend.
+
+Never trust payment success merely because the browser says payment succeeded.
+
+Server-side verification is authoritative.
+
+---
+
+# 24. PAYMENT MODEL
+
+Create:
+
+```text
+Payment
+PaymentAttempt
+PaymentProviderEvent
+PaymentMethod
+PaymentWebhookEvent
+PaymentRefund
+PaymentReversal
+```
+
+Payment states:
+
+```text
+INITIALIZED
+PENDING
+SUCCESS
+FAILED
+CANCELLED
+REVERSED
+REFUNDED
+```
+
+---
+
+# 25. WEBHOOKS
+
+Create a dedicated webhook endpoint.
+
+Requirements:
+
+* verify signature
+* store raw event
+* assign unique event ID
+* make processing idempotent
+* process asynchronously where appropriate
+* retry safely
+* log failures
+* never lose events
+
+If the same event arrives five times, financial effects must occur exactly once.
+
+---
+
+# 26. DEDICATED VIRTUAL ACCOUNTS
+
+Architect the payment layer so customer-specific virtual accounts can be supported.
+
+Create:
+
+```text
+VirtualAccount
+VirtualAccountProvider
+VirtualAccountAssignment
+VirtualAccountTransaction
+```
+
+Do not hard-code Paystack-specific concepts into the customer model.
+
+---
+
+# 27. RECONCILIATION
+
+Create a reconciliation subsystem.
+
+Models:
+
+```text
+ReconciliationRun
+ReconciliationItem
+ReconciliationException
+```
+
+Compare:
+
+```text
+RFUND ledger
+Paystack
+Bank/payment partner
+Agent settlements
+```
+
+Statuses:
+
+```text
+MATCHED
+MISSING_PROVIDER
+MISSING_INTERNAL
+AMOUNT_MISMATCH
+DUPLICATE
+PENDING
+MANUAL_REVIEW
+```
+
+Provide an admin interface for resolving reconciliation exceptions.
+
+---
+
+# 28. TRANSACTION STATES
+
+Do not confuse transaction completion with settlement.
+
+Use explicit states where appropriate:
+
+```text
+INITIATED
+PENDING
+SUCCESS
+FAILED
+REVERSED
+SETTLED
+```
+
+---
+
+# 29. AGENTS
+
+Create:
+
+```text
+Agent
+AgentTerritory
+AgentDevice
+AgentCommission
+AgentTransaction
+AgentFloat
+AgentSettlement
+AgentLimit
+```
+
+An agent belongs to an assigned geographic territory.
+
+Agent limits must be configurable.
+
+Examples:
+
+```text
+daily cash-in limit
+daily payout limit
+single transaction limit
+monthly limit
+```
+
+---
+
+# 30. AGENT DEVICE SECURITY
+
+Support:
+
+```text
+device registration
+device fingerprint
+device status
+last_seen
+app version
+OS version
+```
+
+Allow administrators to disable a compromised device.
+
+Never allow a deactivated device to continue performing financial transactions.
+
+---
+
+# 31. AGENT CASH COLLECTION
+
+Agent cash collection must be represented as a financial transaction.
+
+Flow:
+
+```text
+Customer
+ ↓
+Agent
+ ↓
+Cash collected
+ ↓
+Agent transaction
+ ↓
+Server validation
+ ↓
+Ledger
+ ↓
+Receipt
+ ↓
+Customer notification
+```
+
+Do not simply update a customer's balance.
+
+---
+
+# 32. AGENT FLOAT
+
+Track:
+
+```text
+opening balance
+cash collected
+customer payouts
+settlements
+adjustments
+closing balance
+```
+
+Provide reconciliation.
+
+---
+
+# 33. AGENT SETTLEMENT
+
+Agents must periodically settle collected funds.
+
+Create workflow:
+
+```text
+COLLECTED
+↓
+PENDING_SETTLEMENT
+↓
+SETTLEMENT_REQUESTED
+↓
+UNDER_REVIEW
+↓
+APPROVED
+↓
+SETTLED
+```
+
+Sensitive settlement operations require authorization.
+
+---
+
+# 34. OFFLINE ARCHITECTURE PREPARATION
+
+Although the first implementation is web + API, design APIs to support an offline-first future agent application.
+
+Every externally created transaction should support:
+
+```text
+client_reference
+idempotency_key
+created_at
+device_id
+```
+
+The server remains authoritative.
+
+Offline client state must never automatically equal financial settlement.
+
+---
+
+# 35. COOPERATIVES
+
+Create:
+
+```text
+Cooperative
+CooperativeMember
+CooperativeRole
+CooperativeAccount
+CooperativeSavings
+CooperativeLoan
+```
+
+Cooperatives should support:
+
+```text
+members
+leaders
+location
+registration details
+status
+```
+
+---
+
+# 36. LOAN SYSTEM
+
+Create:
+
+```text
+LoanProduct
+LoanApplication
+LoanAssessment
+LoanVerification
+LoanOffer
+LoanAgreement
+Loan
+LoanDisbursement
+RepaymentSchedule
+Repayment
+Penalty
+Restructure
+Default
+CollectionsCase
+```
+
+---
+
+# 37. LOAN APPLICATION FLOW
+
+Implement:
+
+```text
+DRAFT
+↓
+SUBMITTED
+↓
+KYC_CHECK
+↓
+ELIGIBILITY_CHECK
+↓
+FIELD_VERIFICATION
+↓
+RISK_ASSESSMENT
+↓
+UNDER_REVIEW
+↓
+APPROVED / REJECTED
+↓
+OFFERED
+↓
+ACCEPTED
+↓
+DISBURSEMENT
+↓
+ACTIVE
+```
+
+---
+
+# 38. LOAN PRODUCTS
+
+Initial products:
+
+## Trader Loan
+
+For:
+
+* inventory
+* stock
+* business working capital
+
+## Artisan Loan
+
+For:
+
+* tools
+* equipment
+* raw materials
+
+## FarmerCash
+
+For:
+
+* seeds
+* fertilizer
+* labour
+* transport
+* storage
+* irrigation
+* agricultural inputs
+
+Do not hard-code loan amounts or interest rates.
+
+Use configurable products.
+
+---
+
+# 39. LOAN PRODUCT CONFIGURATION
+
+A loan product must support:
+
+```text
+name
+description
+min_amount
+max_amount
+term
+repayment_frequency
+interest_method
+interest_rate
+fees
+penalty_policy
+eligibility_rules
+required_documents
+required_verifications
+status
+```
+
+All financial calculations must be tested.
+
+---
+
+# 40. REPAYMENT SCHEDULE
+
+Generate explicit schedules.
+
+Each installment:
+
+```text
+due_date
+principal_due
+interest_due
+fees_due
+penalty_due
+total_due
+amount_paid
+status
+```
+
+Support:
+
+```text
+UPCOMING
+DUE
+PARTIALLY_PAID
+PAID
+LATE
+WAIVED
+RESTRUCTURED
+```
+
+---
+
+# 41. REPAYMENT ALLOCATION
+
+Define deterministic repayment allocation.
+
+For example:
+
+```text
+penalty
+fees
+interest
+principal
+```
+
+Do not allow random allocation.
+
+Make the order configurable by loan product.
+
+---
+
+# 42. FARMERCASH
+
+Create:
+
+```text
+FarmerProfile
+Farm
+FarmSeason
+Crop
+FarmActivity
+InputRequirement
+InputSupplier
+FarmerFinancing
+FieldVerification
+Harvest
+Aggregator
+Buyer
+```
+
+A FarmerCash application may include:
+
+```text
+farm location
+farm size
+crop
+season
+input requirements
+expected yield
+expected harvest date
+cooperative
+supplier
+```
+
+---
+
+# 43. IN-KIND FINANCING
+
+Architect FarmerCash to eventually support direct supplier payment.
+
+Example:
+
+```text
+Loan approved
+        ↓
+Input supplier
+        ↓
+Seeds/fertilizer
+        ↓
+Farmer
+```
+
+Do not force all financing to be unrestricted cash.
+
+---
+
+# 44. FIELD VERIFICATION
+
+Create:
+
+```text
+FieldVerification
+Verifier
+GPSCoordinates
+Photos
+Notes
+VerificationStatus
+```
+
+Do not store sensitive location data unnecessarily.
+
+Protect access to precise geolocation.
+
+---
+
+# 45. RISK ENGINE
+
+Do not begin with machine learning.
+
+Create a deterministic rules engine.
+
+Example signals:
+
+```text
+savings consistency
+repayment history
+business verification
+cooperative membership
+transaction history
+loan history
+```
+
+Create:
+
+```text
+RiskRule
+RiskAssessment
+RiskFactor
+RiskDecision
+```
+
+Every risk decision must be explainable.
+
+Never implement:
+
+```text
+AI says NO
+```
+
+without explaining the relevant factors.
+
+---
+
+# 46. FRAUD ENGINE
+
+Create:
+
+```text
+FraudRule
+FraudAlert
+FraudCase
+FraudInvestigation
+```
+
+Initial rules may detect:
+
+* repeated payment attempts
+* duplicate webhook
+* multiple accounts sharing device
+* suspicious agent activity
+* abnormal transaction frequency
+* rapid phone number changes
+* abnormal payout activity
+* agent limit anomalies
+* repeated failed authentication
+* unusual account activity
+
+Do not automatically label a person as fraudulent.
+
+Create:
+
+```text
+FLAGGED
+UNDER_REVIEW
+CLEARED
+CONFIRMED
+```
+
+---
+
+# 47. NOTIFICATIONS
+
+Create a provider abstraction:
+
+```text
+NotificationProvider
+```
+
+Channels:
+
+```text
+SMS
+EMAIL
+PUSH
+WHATSAPP
+```
+
+Create:
+
+```text
+NotificationTemplate
+NotificationEvent
+NotificationDelivery
+```
+
+Every important financial event should be capable of producing a notification.
+
+---
+
+# 48. NOTIFICATION EVENTS
+
+Examples:
+
+```text
+ACCOUNT_CREATED
+KYC_SUBMITTED
+KYC_VERIFIED
+SAVINGS_CREATED
+SAVINGS_PAYMENT_DUE
+SAVINGS_PAYMENT_RECEIVED
+SAVINGS_MISSED
+PAYMENT_SUCCESS
+PAYMENT_FAILED
+LOAN_SUBMITTED
+LOAN_APPROVED
+LOAN_REJECTED
+LOAN_DISBURSED
+REPAYMENT_DUE
+REPAYMENT_RECEIVED
+REPAYMENT_LATE
+PAYOUT_COMPLETED
+SECURITY_ALERT
+```
+
+---
+
+# 49. RECEIPTS
+
+Every successful financial transaction should have a human-readable receipt reference.
+
+Example:
+
+```text
+RF-SAV-20260921-000001
+```
+
+Provide:
+
+* receipt data
+* printable receipt
+* PDF generation architecture
+* SMS receipt
+* downloadable receipt
+
+---
+
+# 50. AUDIT SYSTEM
+
+Create:
+
+```text
+AuditEvent
+AuditActor
+AuditAction
+AuditResource
+AuditMetadata
+```
+
+Record:
+
+```text
+who
+what
+when
+resource
+before
+after
+IP
+device
+reason
+```
+
+Financial audit events must not be editable by normal administrators.
+
+---
+
+# 51. SUPPORT SYSTEM
+
+Create:
+
+```text
+SupportTicket
+SupportMessage
+SupportCategory
+SupportAttachment
+SupportAssignment
+```
+
+Customers should be able to report:
+
+* missing payment
+* incorrect balance
+* failed loan
+* account problem
+* agent complaint
+* transaction issue
+
+Support staff should be able to trace:
+
+```text
+customer
+→ payment
+→ provider
+→ webhook
+→ ledger
+→ balance
+```
+
+---
+
+# 52. GRAPHQL
+
+Create a strongly typed GraphQL schema.
+
+Organize by domain.
+
+Example:
+
+```text
+Query
+├── me
+├── customer
+├── accounts
+├── savings
+├── savingsPlans
+├── transactions
+├── loans
+├── notifications
+└── support
+```
+
+Mutations:
+
+```text
+registerCustomer
+updateProfile
+submitKYC
+createSavingsPlan
+makePayment
+createSavingsGoal
+applyForLoan
+acceptLoanOffer
+makeRepayment
+```
+
+Admin mutations must be protected.
+
+---
+
+# 53. GRAPHQL SECURITY
+
+Implement:
+
+* authentication
+* authorization
+* object-level permission checks
+* rate limiting
+* query complexity limits
+* pagination
+* depth limits
+* input validation
+* error sanitization
+
+Do not expose internal exceptions to users.
+
+Never return stack traces in production.
+
+---
+
+# 54. GRAPHQL ERRORS
+
+Use structured errors.
+
+Example:
+
+```json
+{
+  "code": "INSUFFICIENT_FUNDS",
+  "message": "The transaction could not be completed."
+}
+```
+
+Do not expose:
+
+* SQL errors
+* secret keys
+* provider credentials
+* internal stack traces
+* sensitive KYC data
+
+---
+
+# 55. PAGINATION
+
+All large collections must be paginated.
+
+Use cursor-based pagination where appropriate.
+
+Do not expose unlimited transaction lists.
+
+---
+
+# 56. DATABASE CONSTRAINTS
+
+Use database-level constraints where possible.
+
+Examples:
+
+* unique phone
+* unique customer reference
+* unique payment provider reference
+* unique webhook event
+* unique idempotency key
+* valid monetary values
+* valid currency
+* valid transaction state
+
+Do not rely exclusively on Python validation.
+
+---
+
+# 57. TRANSACTIONAL INTEGRITY
+
+Financial posting must use database transactions.
+
+Use:
+
+```python
+transaction.atomic()
+```
+
+where appropriate.
+
+Lock relevant rows when concurrent operations can cause double spending or double posting.
+
+Use PostgreSQL row-level locking where required.
+
+---
+
+# 58. CONCURRENCY TESTING
+
+Write tests for:
+
+```text
+two simultaneous payments
+two simultaneous withdrawals
+duplicate webhooks
+duplicate repayments
+two simultaneous loan approvals
+agent limit race conditions
+```
+
+The system must remain financially correct.
+
+---
+
+# 59. SECURITY
+
+Implement:
+
+```text
+HTTPS
+secure cookies
+CSRF protection where applicable
+CORS restrictions
+CSP
+HSTS
+secure headers
+rate limiting
+password hashing
+token rotation
+refresh token security
+2FA architecture
+RBAC
+audit logging
+secret management
+```
+
+Do not hard-code secrets.
+
+---
+
+# 60. AUTHENTICATION
+
+Support:
+
+```text
+phone/email
+password
+OTP architecture
+refresh tokens
+logout
+session revocation
+password reset
+```
+
+For customers, phone-based authentication should be supported.
+
+Do not log OTPs or passwords.
+
+---
+
+# 61. ADMIN AUTHENTICATION
+
+Administrative users require stronger security.
+
+Support:
+
+```text
+MFA
+session timeout
+device awareness
+audit logs
+role restrictions
+```
+
+Highly privileged operations should require step-up authentication.
+
+---
+
+# 62. DOCUMENT STORAGE
+
+Use private object storage.
+
+Never expose private KYC documents through public URLs.
+
+Use signed temporary URLs where necessary.
+
+---
+
+# 63. PRIVACY
+
+Minimize sensitive data.
+
+Separate:
+
+```text
+identity data
+financial data
+authentication data
+operational data
+analytics data
+```
+
+Apply least privilege.
+
+Do not allow support staff to automatically see all KYC or financial data.
+
+---
+
+# 64. WEB APPLICATION
+
+Build a professional production-grade RFUND web application.
+
+The existing prototype should inspire the visual direction but must not dictate weak architecture.
+
+Use:
+
+```text
+Next.js
+React
+TypeScript
+Tailwind
+GraphQL
+Responsive design
+Accessibility
+```
+
+---
+
+# 65. WEB APP AREAS
+
+Create:
+
+```text
+/
+about
+/how-it-works
+/savings
+/loans
+/farmercash
+/agents
+/cooperatives
+/contact
+```
+
+Authenticated application:
+
+```text
+/app
+/app/dashboard
+/app/savings
+/app/savings/[id]
+/app/goals
+/app/payments
+/app/transactions
+/app/loans
+/app/loans/[id]
+/app/profile
+/app/notifications
+/app/support
+```
+
+Agent:
+
+```text
+/agent
+/agent/dashboard
+/agent/customers
+/agent/customers/[id]
+/agent/transactions
+/agent/collections
+/agent/settlements
+/agent/profile
+```
+
+Admin:
+
+```text
+/admin
+/admin/dashboard
+/admin/customers
+/admin/agents
+/admin/cooperatives
+/admin/savings
+/admin/loans
+/admin/payments
+/admin/ledger
+/admin/reconciliation
+/admin/risk
+/admin/fraud
+/admin/kyc
+/admin/support
+/admin/reports
+/admin/audit
+```
+
+---
+
+# 66. PUBLIC WEBSITE
+
+The public website should communicate RFUND simply.
+
+Core message:
+
+> Save. Build. Grow.
+
+Explain:
+
+* Digital Ajo
+* rural loans
+* FarmerCash
+* agent network
+* USSD
+* secure payments
+* financial inclusion
+
+Do not make unsupported claims.
+
+Do not imply government endorsement.
+
+Do not claim licensing that has not been verified.
+
+---
+
+# 67. CUSTOMER DASHBOARD
+
+Dashboard should show:
+
+```text
+Total savings
+Active savings plan
+Next contribution
+Savings goals
+Loan balance
+Next repayment
+Recent transactions
+Notifications
+```
+
+Keep the interface extremely understandable.
+
+---
+
+# 68. SAVINGS UI
+
+Customer should be able to:
+
+```text
+view savings
+create plan
+select frequency
+set amount
+select start date
+select end date
+view schedule
+make contribution
+view history
+request eligible payout
+```
+
+---
+
+# 69. LOAN UI
+
+Customer should see:
+
+```text
+available products
+eligibility
+application
+status
+offer
+repayment schedule
+repayment history
+remaining balance
+```
+
+Never show an ambiguous loan status.
+
+---
+
+# 70. AGENT UI
+
+Agent dashboard:
+
+```text
+Customers
+Today's collections
+Today's transactions
+Pending sync
+Available float
+Settlement status
+Commission
+Alerts
+```
+
+Provide a quick customer search.
+
+---
+
+# 71. ADMIN UI
+
+Admin dashboard should show operational KPIs.
+
+Examples:
+
+```text
+Active customers
+Savings volume
+Loan portfolio
+Repayment volume
+Pending KYC
+Pending loans
+Payment failures
+Reconciliation exceptions
+Agent activity
+Risk alerts
+Fraud alerts
+```
+
+Do not expose unnecessary personally identifiable information on overview screens.
+
+---
+
+# 72. TRANSACTION UI
+
+Transaction details must show:
+
+```text
+reference
+amount
+currency
+type
+status
+date
+payment method
+provider reference where appropriate
+related account
+```
+
+Staff can see additional audit information according to permissions.
+
+---
+
+# 73. DESIGN SYSTEM
+
+Create reusable:
+
+```text
+Button
+Input
+Select
+Modal
+Drawer
+Table
+Pagination
+Badge
+Card
+Alert
+Toast
+EmptyState
+LoadingState
+ErrorState
+Form
+Stepper
+Timeline
+StatCard
+TransactionItem
+```
+
+Do not create one-off inconsistent components for every page.
+
+---
+
+# 74. DESIGN QUALITY
+
+The interface must feel like a serious financial platform.
+
+Priorities:
+
+1. trust
+2. clarity
+3. accessibility
+4. simplicity
+5. speed
+6. consistency
+
+Do not overload rural users with financial terminology.
+
+---
+
+# 75. RESPONSIVENESS
+
+The web app must work on:
+
+```text
+desktop
+tablet
+low-resolution laptop
+mobile browser
+```
+
+Assume many users will access the system using inexpensive Android devices.
+
+---
+
+# 76. ACCESSIBILITY
+
+Follow WCAG principles.
+
+Support:
+
+* keyboard navigation
+* sufficient contrast
+* semantic HTML
+* labels
+* focus states
+* screen-reader compatibility
+* error messaging
+* reduced motion where appropriate
+
+---
+
+# 77. FRONTEND STATE
+
+Do not duplicate server state unnecessarily.
+
+GraphQL data should remain the authoritative source.
+
+Use local state only for UI concerns.
+
+Handle:
+
+```text
+loading
+success
+empty
+error
+retry
+offline
+```
+
+on every important screen.
+
+---
+
+# 78. OFFLINE PREPARATION
+
+Web application should gracefully handle poor connectivity.
+
+Never tell a user a transaction succeeded unless the backend has confirmed it.
+
+Use explicit:
+
+```text
+Processing...
+```
+
+rather than:
+
+```text
+Success!
+```
+
+before server confirmation.
+
+---
+
+# 79. API DOCUMENTATION
+
+Even though GraphQL is self-documenting, create:
+
+```text
+docs/api.md
+docs/graphql.md
+docs/authentication.md
+docs/payments.md
+docs/ledger.md
+docs/webhooks.md
+```
+
+Document every financial mutation.
+
+---
+
+# 80. TESTING REQUIREMENTS
+
+The project is not complete until tests exist.
+
+Minimum:
+
+### Unit tests
+
+For:
+
+* savings schedule
+* loan calculations
+* repayment allocation
+* ledger
+* payment states
+* risk rules
+* permissions
+* KYC states
+
+### Integration tests
+
+For:
+
+* Paystack
+* webhooks
+* ledger
+* savings
+* loans
+* notifications
+
+### GraphQL tests
+
+For every query and mutation.
+
+### Permission tests
+
+Every protected operation.
+
+### End-to-end tests
+
+Critical customer journeys.
+
+---
+
+# 81. FINANCIAL TEST CASES
+
+Explicitly test:
+
+```text
+₦0
+₦1
+₦999
+₦1,000
+₦100,000
+₦1,000,000
+```
+
+Test:
+
+```text
+rounding
+decimal precision
+partial repayment
+overpayment
+duplicate payment
+reversal
+refund
+failed payment
+concurrent payment
+```
+
+---
+
+# 82. PROPERTY/INVARIANT TESTING
+
+Create tests proving:
+
+```text
+debits == credits
+```
+
+after every posted ledger transaction.
+
+Also test:
+
+```text
+balance >= 0
+```
+
+where the product rules prohibit negative balances.
+
+Test:
+
+```text
+duplicate webhook → no duplicate credit
+```
+
+Test:
+
+```text
+duplicate idempotency key → no duplicate transaction
+```
+
+---
+
+# 83. MIGRATIONS
+
+Every schema change requires a Django migration.
+
+Never edit production database schema manually.
+
+Migrations must be tested from a clean database.
+
+---
+
+# 84. SEED DATA
+
+Create a safe development seed command:
+
+```text
+python manage.py seed_demo
+```
+
+It must create:
+
+* admin
+* staff
+* customers
+* agents
+* cooperative
+* savings products
+* loan products
+* sample transactions
+
+Do not include real personal information.
+
+---
+
+# 85. ENVIRONMENT CONFIGURATION
+
+Create:
+
+```text
+.env.example
+.env.test.example
+```
+
+Include placeholders for:
+
+```text
+DJANGO_SECRET_KEY
+DATABASE_URL
+REDIS_URL
+PAYSTACK_SECRET_KEY
+PAYSTACK_PUBLIC_KEY
+PAYSTACK_WEBHOOK_SECRET
+SMS_PROVIDER_KEY
+OBJECT_STORAGE_KEY
+OBJECT_STORAGE_SECRET
+OBJECT_STORAGE_BUCKET
+SENTRY_DSN
+```
+
+Never commit secrets.
+
+---
+
+# 86. DOCKER
+
+Create development environment:
+
+```text
+backend
+web
+postgres
+redis
+celery
+celery-beat
+```
+
+All services must start with one documented command.
+
+Example:
+
+```bash
+docker compose up
+```
+
+---
+
+# 87. CI/CD
+
+Create GitHub Actions for:
+
+```text
+lint
+type checking
+unit tests
+integration tests
+frontend tests
+build
+security checks
+```
+
+Do not allow deployment if tests fail.
+
+---
+
+# 88. CODE QUALITY
+
+Backend:
+
+```text
+ruff
+black
+mypy where practical
+pytest
+```
+
+Frontend:
+
+```text
+ESLint
+Prettier
+TypeScript strict mode
+Vitest/Jest
+Playwright
+```
+
+Do not disable linting merely to make CI pass.
+
+---
+
+# 89. LOGGING
+
+Use structured logs.
+
+Every important financial operation should include:
+
+```text
+request_id
+user_id where appropriate
+transaction_reference
+operation
+status
+duration
+```
+
+Never log:
+
+* passwords
+* OTPs
+* payment secrets
+* full sensitive identity numbers
+* secret API keys
+
+---
+
+# 90. OBSERVABILITY
+
+Create:
+
+```text
+health endpoint
+readiness endpoint
+liveness endpoint
+metrics
+structured logging
+error monitoring
+```
+
+Health checks must verify required dependencies.
+
+---
+
+# 91. BACKUPS
+
+Document:
+
+```text
+database backup
+restore
+object storage backup
+retention
+encryption
+restore testing
+```
+
+The system must have a tested recovery procedure.
+
+---
+
+# 92. ADMIN SAFETY
+
+Sensitive operations must require confirmation.
+
+Examples:
+
+```text
+reverse transaction
+approve loan
+disburse loan
+change customer bank account
+disable agent
+settle agent
+modify financial configuration
+```
+
+Where appropriate, implement maker-checker approval:
+
+```text
+Maker
+ ↓
+Review
+ ↓
+Checker
+ ↓
+Approved
+```
+
+---
+
+# 93. CONFIGURATION MANAGEMENT
+
+Financial rules must not be scattered throughout source code.
+
+Create configurable products and policies.
+
+Examples:
+
+```text
+Loan interest rate
+Loan maximum
+Savings contribution limits
+Agent transaction limits
+Penalty rules
+Notification thresholds
+```
+
+Configuration changes must be audited.
+
+---
+
+# 94. FINANCIAL CONFIGURATION VERSIONING
+
+When a financial product changes:
+
+Do not silently change the historical meaning of existing accounts.
+
+Use:
+
+```text
+ProductVersion
+```
+
+A savings/loan account must know which product version created it.
+
+---
+
+# 95. TIMEZONE
+
+Use:
+
+```text
+UTC internally
+```
+
+and display:
+
+```text
+Africa/Lagos
+```
+
+for Nigerian users.
+
+Never mix naive and timezone-aware datetimes.
+
+---
+
+# 96. DATE HANDLING
+
+Use proper calendar calculations.
+
+Test:
+
+* month-end
+* leap years
+* daylight savings irrelevant to Nigeria but architecture should remain timezone-aware
+* year boundaries
+* overdue calculations
+* public holidays where relevant
+
+---
+
+# 97. PUBLIC HOLIDAYS
+
+Do not silently assume all payments happen on business days.
+
+Create a configurable calendar abstraction for future financial-provider requirements.
+
+---
+
+# 98. INTERNATIONALIZATION
+
+Initial language:
+
+```text
+English
+```
+
+Architecture should allow:
+
+```text
+Hausa
+Yoruba
+Igbo
+Pidgin
+```
+
+later.
+
+Do not hard-code user-facing text throughout business logic.
+
+---
+
+# 99. USSD PREPARATION
+
+Even though USSD is not the primary web build, create the backend domain architecture so USSD can call the same services.
+
+Example:
+
+```text
+USSD
+ ↓
+USSD Handler
+ ↓
+SavingsService
+ ↓
+Ledger
+```
+
+Never:
+
+```text
+USSD
+ ↓
+direct database update
+```
+
+---
+
+# 100. MOBILE PREPARATION
+
+The GraphQL schema must be mobile-friendly.
+
+Avoid returning huge nested objects.
+
+Use:
+
+```text
+connections
+pagination
+fragments
+```
+
+and clear mobile-oriented query patterns.
+
+---
+
+# 101. API VERSIONING
+
+GraphQL itself is versioned through schema evolution.
+
+Do not break existing fields unnecessarily.
+
+Deprecate before removing.
+
+Document breaking changes.
+
+---
+
+# 102. NO MOCK FINANCIAL SUCCESS
+
+The production application must never contain:
+
+```text
+if demo:
+    payment_success = True
+```
+
+or fake balances.
+
+If demo mode exists, it must be explicit and impossible to activate accidentally in production.
+
+---
+
+# 103. NO HARDCODED CUSTOMER BALANCES
+
+Never use:
+
+```text
+₦100000
+```
+
+as a fake balance in production UI.
+
+All financial figures displayed in authenticated application screens must originate from backend data.
+
+---
+
+# 104. NO PLACEHOLDER BUTTONS
+
+Do not build buttons that do nothing.
+
+Every button must:
+
+* perform a real implemented action
+* navigate to an implemented destination
+* or not exist yet
+
+Do not ship:
+
+```text
+Coming soon
+```
+
+for core MVP functionality unless explicitly approved.
+
+---
+
+# 105. ERROR HANDLING
+
+Every major workflow must define:
+
+```text
+happy path
+validation failure
+authorization failure
+provider failure
+network failure
+timeout
+duplicate request
+concurrent request
+database failure
+rollback
+```
+
+---
+
+# 106. DATABASE TRANSACTION BOUNDARIES
+
+Financial workflows must define exactly which operations occur atomically.
+
+Example:
+
+```text
+payment verified
++
+ledger transaction posted
++
+payment marked processed
+```
+
+must be designed so inconsistent partial states cannot silently occur.
+
+Where external providers are involved, use reliable state machines/outbox/retry patterns rather than pretending external calls are part of a database transaction.
+
+---
+
+# 107. OUTBOX PATTERN
+
+Implement an event/outbox architecture where appropriate.
+
+Example:
+
+```text
+Financial transaction
+       ↓
+Database commit
+       ↓
+Outbox event
+       ↓
+Celery
+       ↓
+SMS
+```
+
+This prevents notification delivery from breaking the financial transaction.
+
+---
+
+# 108. DOMAIN EVENTS
+
+Create internal events such as:
+
+```text
+PaymentSucceeded
+SavingsContributionPosted
+LoanApproved
+LoanDisbursed
+RepaymentPosted
+KYCVerified
+AgentSettlementApproved
+```
+
+Consumers can respond without tightly coupling domains.
+
+---
+
+# 109. WEBHOOK EVENT PROCESSING
+
+Store provider events before processing them.
+
+Workflow:
+
+```text
+Receive webhook
+ ↓
+Validate
+ ↓
+Persist event
+ ↓
+Acknowledge safely
+ ↓
+Process
+ ↓
+Update provider transaction
+ ↓
+Post ledger
+ ↓
+Emit internal event
+```
+
+---
+
+# 110. SECURITY TESTING
+
+Include tests for:
+
+```text
+SQL injection
+XSS
+CSRF
+authentication bypass
+authorization bypass
+IDOR
+GraphQL abuse
+rate limiting
+file upload abuse
+malicious document upload
+webhook spoofing
+replay attacks
+duplicate financial operations
+```
+
+---
+
+# 111. OBJECT-LEVEL AUTHORIZATION
+
+A customer must never be able to query another customer's:
+
+```text
+account
+transactions
+KYC
+loans
+documents
+```
+
+merely by changing an ID.
+
+Test IDOR explicitly.
+
+---
+
+# 112. FILE UPLOAD SECURITY
+
+For uploaded documents:
+
+* validate type
+* validate size
+* generate server-side names
+* store privately
+* scan where possible
+* never execute uploaded content
+* avoid serving user-controlled MIME types directly
+* audit access
+
+---
+
+# 113. RATE LIMITING
+
+Rate limit:
+
+```text
+login
+OTP
+password reset
+GraphQL mutations
+payment initialization
+loan application
+support
+webhooks where appropriate
+```
+
+Do not use one global rate limit for everything.
+
+---
+
+# 114. FRONTEND SECURITY
+
+Do not put:
+
+```text
+PAYSTACK_SECRET_KEY
+DATABASE_URL
+JWT signing secret
+```
+
+in frontend environment variables.
+
+Only public configuration may reach browser code.
+
+---
+
+# 115. GRAPHQL QUERY SECURITY
+
+Implement:
+
+```text
+query depth limits
+query complexity
+pagination limits
+mutation rate limits
+maximum request size
+```
+
+Prevent malicious deeply nested queries.
+
+---
+
+# 116. ADMIN GRAPHQL
+
+Separate customer-facing schema permissions from administrative capabilities.
+
+A customer must never discover admin data simply because the GraphQL type exists.
+
+---
+
+# 117. REPORTING
+
+Create reporting services for:
+
+```text
+customer growth
+savings
+loan portfolio
+repayments
+agent performance
+cooperative activity
+geography
+payment reconciliation
+risk
+fraud
+```
+
+Reports must use read-optimized queries where appropriate.
+
+---
+
+# 118. EXPORTS
+
+Allow authorized users to export:
+
+```text
+CSV
+Excel
+PDF
+```
+
+but enforce permission checks.
+
+Exports containing sensitive data must be audited.
+
+---
+
+# 119. CUSTOMER DATA EXPORT
+
+Where required by applicable privacy obligations, architect for customer data export.
+
+---
+
+# 120. ACCOUNT DEACTIVATION
+
+Do not delete financial customers with historical transactions.
+
+Use:
+
+```text
+ACTIVE
+SUSPENDED
+DEACTIVATED
+```
+
+and preserve required records.
+
+---
+
+# 121. SOFT DELETE
+
+Do not use soft-delete indiscriminately.
+
+For financial records:
+
+```text
+NEVER DELETE
+```
+
+For ordinary non-financial objects, use appropriate lifecycle states.
+
+---
+
+# 122. DATABASE INDEXING
+
+Index important lookup fields:
+
+```text
+phone
+customer_reference
+payment_reference
+provider_reference
+transaction_reference
+idempotency_key
+created_at
+status
+loan status
+savings status
+agent
+cooperative
+```
+
+Use query analysis to avoid N+1 problems.
+
+---
+
+# 123. N+1 PREVENTION
+
+GraphQL resolvers must use appropriate:
+
+```text
+select_related
+prefetch_related
+DataLoader
+```
+
+where appropriate.
+
+Test query performance.
+
+---
+
+# 124. PERFORMANCE TARGET
+
+The system should remain responsive under realistic pilot load.
+
+Design for horizontal scaling.
+
+Do not prematurely create microservices.
+
+Use a modular monolith first.
+
+---
+
+# 125. ARCHITECTURE DECISION
+
+The initial RFUND backend must be a:
+
+> **modular monolith**
+
+not a collection of microservices.
+
+Keep domains separated internally.
+
+Only extract services when actual operational requirements justify it.
+
+---
+
+# 126. WEB DESIGN DIRECTION
+
+Use the existing RFUND prototype as a product/design reference.
+
+Retain useful ideas:
+
+* rural accessibility
+* savings calculator
+* Digital Ajo
+* Rural Loans
+* FarmerCash
+* agent access
+* USSD access
+
+Improve:
+
+* information architecture
+* financial clarity
+* accessibility
+* responsive design
+* authentication
+* application flows
+* dashboards
+* transaction history
+* error handling
+* trust signals
+
+---
+
+# 127. PUBLIC NAVIGATION
+
+Use:
+
+```text
+Home
+How It Works
+Savings
+Loans
+FarmerCash
+Agents
+About
+Contact
+Login
+Get Started
+```
+
+Avoid unnecessary mega menus.
+
+---
+
+# 128. CUSTOMER NAVIGATION
+
+```text
+Dashboard
+Savings
+Goals
+Loans
+Transactions
+Notifications
+Profile
+Help
+```
+
+---
+
+# 129. AGENT NAVIGATION
+
+```text
+Dashboard
+Customers
+Collections
+Transactions
+Settlements
+Commission
+Profile
+Help
+```
+
+---
+
+# 130. ADMIN NAVIGATION
+
+```text
+Dashboard
+Customers
+Agents
+Cooperatives
+Savings
+Loans
+Payments
+Ledger
+Reconciliation
+KYC
+Risk
+Fraud
+Support
+Reports
+Audit
+Settings
+```
+
+---
+
+# 131. CUSTOMER ONBOARDING
+
+Build:
+
+```text
+phone
+OTP
+profile
+KYC
+PIN/password
+terms
+dashboard
+```
+
+Do not ask for unnecessary information during initial signup.
+
+Progressively collect information when required.
+
+---
+
+# 132. SAVINGS ONBOARDING
+
+Flow:
+
+```text
+Choose product
+ ↓
+Amount
+ ↓
+Frequency
+ ↓
+Start date
+ ↓
+End date
+ ↓
+Review
+ ↓
+Confirm
+ ↓
+Payment
+ ↓
+Success
+```
+
+Show exact schedule before confirmation.
+
+---
+
+# 133. LOAN ONBOARDING
+
+Flow:
+
+```text
+Choose product
+ ↓
+Eligibility
+ ↓
+Application
+ ↓
+KYC
+ ↓
+Business/farm information
+ ↓
+Verification
+ ↓
+Assessment
+ ↓
+Decision
+ ↓
+Offer
+ ↓
+Acceptance
+ ↓
+Disbursement
+```
+
+---
+
+# 134. TRANSACTION HISTORY
+
+Use filters:
+
+```text
+All
+Savings
+Payments
+Loan
+Repayment
+Payout
+```
+
+Allow:
+
+```text
+date range
+status
+amount
+reference
+```
+
+---
+
+# 135. DASHBOARD LANGUAGE
+
+Use simple language.
+
+Prefer:
+
+```text
+Money saved
+Next payment
+Loan balance
+Next repayment
+```
+
+over unnecessarily technical terms.
+
+---
+
+# 136. TRUST UX
+
+Always show:
+
+```text
+transaction reference
+status
+date
+amount
+```
+
+For pending operations:
+
+```text
+We're processing this transaction.
+Reference: RF-...
+```
+
+Do not claim success until confirmed.
+
+---
+
+# 137. ACCESSIBILITY FOR RURAL USERS
+
+Use:
+
+* large touch targets
+* readable typography
+* strong contrast
+* minimal text
+* clear icons
+* simple language
+* no unnecessary animations
+* low-bandwidth pages
+* compressed assets
+
+---
+
+# 138. SEO
+
+Public pages should have:
+
+* metadata
+* OpenGraph
+* structured headings
+* sitemap
+* robots.txt
+* canonical URLs
+
+---
+
+# 139. ANALYTICS
+
+Implement privacy-conscious product analytics.
+
+Track events such as:
+
+```text
+signup_started
+signup_completed
+kyc_started
+kyc_completed
+savings_created
+payment_started
+payment_completed
+loan_started
+loan_submitted
+```
+
+Do not send sensitive financial or identity information to third-party analytics unnecessarily.
+
+---
+
+# 140. PRODUCT ANALYTICS
+
+Create internal analytics around:
+
+```text
+conversion
+drop-off
+savings frequency
+payment failure
+loan application funnel
+repayment behavior
+agent activity
+```
+
+---
+
+# 141. DOCUMENTATION
+
+Create:
+
+```text
+README.md
+ARCHITECTURE.md
+SECURITY.md
+FINANCIAL_MODEL.md
+LEDGER.md
+PAYMENTS.md
+SAVINGS.md
+LOANS.md
+AGENTS.md
+KYC.md
+GRAPHQL.md
+DEPLOYMENT.md
+BACKUPS.md
+TESTING.md
+TROUBLESHOOTING.md
+```
+
+---
+
+# 142. ARCHITECTURE DIAGRAMS
+
+Document:
+
+```text
+system architecture
+database ERD
+payment flow
+ledger flow
+loan lifecycle
+savings lifecycle
+agent flow
+authentication flow
+webhook flow
+reconciliation flow
+```
+
+Use Mermaid diagrams where appropriate.
+
+---
+
+# 143. DATABASE ERD
+
+Generate a Mermaid ERD documenting the major relationships.
+
+Do not leave the schema implicit.
+
+---
+
+# 144. API EXAMPLES
+
+Documentation must contain real GraphQL examples.
+
+Example:
+
+```graphql
+query Me {
+  me {
+    id
+    customerReference
+    firstName
+    lastName
+  }
+}
+```
+
+and:
+
+```graphql
+mutation CreateSavingsPlan {
+  createSavingsPlan(
+    input: {
+      productId: "..."
+      amount: "1000.00"
+      frequency: WEEKLY
+      startDate: "2026-10-01"
+      endDate: "2026-12-31"
+    }
+  ) {
+    id
+    status
+  }
+}
+```
+
+---
+
+# 145. FINANCIAL CONFIGURATION
+
+Never hard-code:
+
+```text
+interest rates
+fees
+limits
+penalties
+commission rates
+```
+
+Create configurable models.
+
+But configuration changes must be versioned and audited.
+
+---
+
+# 146. AGENT COMMISSIONS
+
+Create:
+
+```text
+CommissionRule
+CommissionTransaction
+CommissionSettlement
+```
+
+Support configurable commission logic.
+
+Do not directly add commission money to an agent balance without ledger entries.
+
+---
+
+# 147. FUTURE WHATSAPP
+
+Prepare notification/channel architecture for WhatsApp.
+
+Do not tightly couple the customer model to SMS.
+
+---
+
+# 148. FUTURE USSD
+
+Prepare:
+
+```text
+USSDSession
+USSDRequest
+USSDResponse
+USSDProvider
+```
+
+but do not implement fake functionality.
+
+---
+
+# 149. FUTURE MOBILE APP
+
+GraphQL must expose stable domain APIs for Flutter.
+
+Do not design the web frontend's needs as the only API requirement.
+
+---
+
+# 150. FUTURE PARTNERS
+
+Create provider interfaces.
+
+Examples:
+
+```text
+PaymentProvider
+IdentityProvider
+MessagingProvider
+BankingProvider
+USSDProvider
+StorageProvider
+```
+
+Every provider must have:
+
+```text
+interface
+adapter
+configuration
+logging
+error mapping
+tests
+```
+
+---
+
+# 151. PROVIDER ERROR NORMALIZATION
+
+Do not leak Paystack-specific errors into the entire application.
+
+Map:
+
+```text
+PaystackError
+```
+
+to:
+
+```text
+PaymentProviderError
+```
+
+then:
+
+```text
+RFUND domain error
+```
+
+---
+
+# 152. WEBHOOK RETRIES
+
+Provider webhooks must be safe to retry.
+
+Use:
+
+```text
+exponential backoff
+maximum retry count
+dead-letter state
+manual retry
+```
+
+---
+
+# 153. CELERY
+
+Use Celery for:
+
+```text
+notifications
+webhook processing
+reconciliation
+scheduled savings reminders
+loan reminders
+reports
+risk recalculation
+```
+
+Never put essential financial logic exclusively inside an unreliable asynchronous task.
+
+The authoritative transaction state must exist in PostgreSQL.
+
+---
+
+# 154. CRON/SCHEDULED TASKS
+
+Use Celery Beat for:
+
+```text
+daily savings schedule generation
+payment reminders
+loan repayment reminders
+reconciliation
+risk refresh
+report generation
+```
+
+Every scheduled task must be idempotent.
+
+---
+
+# 155. FAILURE RECOVERY
+
+Every external integration must answer:
+
+> What happens if the provider is down after our database transaction succeeds?
+
+and:
+
+> What happens if the provider succeeds but our server crashes before recording the result?
+
+Document and implement recovery strategies.
+
+---
+
+# 156. MONEY MOVEMENT SAFETY
+
+Never implement:
+
+```text
+customer requests payout
+→ immediately mark success
+```
+
+Instead:
+
+```text
+REQUESTED
+↓
+VALIDATED
+↓
+AUTHORIZED
+↓
+SUBMITTED_TO_PROVIDER
+↓
+PROVIDER_PROCESSING
+↓
+SUCCESS / FAILED
+↓
+SETTLED
+```
+
+---
+
+# 157. MAKER-CHECKER
+
+Support configurable maker-checker workflows for:
+
+```text
+large loan approvals
+large disbursements
+manual ledger adjustments
+agent settlements
+refunds
+financial configuration changes
+```
+
+---
+
+# 158. LIMITS
+
+Implement transaction limits by:
+
+```text
+customer
+agent
+product
+KYC level
+risk level
+geography
+```
+
+All limits must be server-side.
+
+---
+
+# 159. KYC LEVELS
+
+Prepare for:
+
+```text
+BASIC
+STANDARD
+ENHANCED
+```
+
+with configurable transaction limits.
+
+Do not hard-code regulatory limits without verified current requirements.
+
+---
+
+# 160. SUSPICIOUS ACTIVITY
+
+Risk engine should be able to flag:
+
+```text
+velocity
+amount anomalies
+device anomalies
+geographic anomalies
+agent anomalies
+account takeover indicators
+```
+
+Flags go into investigation workflow.
+
+---
+
+# 161. ACCOUNT SECURITY
+
+Support:
+
+```text
+change phone
+change email
+change PIN/password
+revoke sessions
+view devices
+lock account
+```
+
+Sensitive changes require additional verification.
+
+---
+
+# 162. ACCOUNT TAKEOVER PROTECTION
+
+Monitor:
+
+```text
+new device
+new location
+phone change
+password reset
+rapid payout
+```
+
+and create configurable security alerts.
+
+---
+
+# 163. CUSTOMER PIN
+
+If PIN authentication is used:
+
+* never store plaintext PIN
+* hash securely
+* rate limit attempts
+* lock after repeated failures
+* provide recovery flow
+
+---
+
+# 164. API RATE LIMITS
+
+Define different limits for:
+
+```text
+anonymous
+customer
+agent
+admin
+webhook
+internal
+```
+
+---
+
+# 165. ADMIN AUDIT
+
+Every privileged mutation must create an audit event.
+
+Especially:
+
+```text
+approve
+reject
+reverse
+refund
+disburse
+settle
+suspend
+change configuration
+```
+
+---
+
+# 166. DATABASE SECURITY
+
+Production database:
+
+* private network
+* encrypted connections where applicable
+* no public exposure
+* least-privilege database users
+* separate migration/application credentials where practical
+* backups encrypted
+
+---
+
+# 167. SECRET MANAGEMENT
+
+Never put secrets in:
+
+```text
+Git
+Dockerfile
+frontend
+documentation
+logs
+database
+```
+
+Use environment/secret management.
+
+---
+
+# 168. DEPLOYMENT
+
+Provide production deployment documentation for:
+
+```text
+Django
+Next.js
+PostgreSQL
+Redis
+Celery
+Nginx
+TLS
+DNS
+Object storage
+Monitoring
+Backups
+```
+
+---
+
+# 169. HEALTH ENDPOINTS
+
+Provide:
+
+```text
+/health/live
+/health/ready
+```
+
+Readiness should verify required dependencies.
+
+---
+
+# 170. ERROR TRACKING
+
+Integrate an error monitoring abstraction.
+
+Do not let third-party monitoring receive sensitive financial data unnecessarily.
+
+---
+
+# 171. TEST ENVIRONMENT
+
+Create isolated:
+
+```text
+development
+test
+staging
+production
+```
+
+configuration.
+
+Never use production credentials in tests.
+
+---
+
+# 172. STAGING
+
+Staging must support:
+
+```text
+test Paystack credentials
+test notifications
+demo data
+```
+
+and must be clearly marked.
+
+---
+
+# 173. PRODUCTION SAFETY
+
+Production must reject:
+
+```text
+DEBUG=True
+```
+
+and must validate required environment variables before starting.
+
+---
+
+# 174. DATABASE MIGRATION SAFETY
+
+Before production migration:
+
+```text
+backup
+migration test
+rollback plan
+```
+
+---
+
+# 175. SEEDING SAFETY
+
+`seed_demo` must refuse to run against production unless an explicit dangerous override exists and is strongly protected.
+
+Prefer making it impossible.
+
+---
+
+# 176. FRONTEND AUTH
+
+Use secure token storage appropriate to the architecture.
+
+Do not store long-lived sensitive tokens in insecure browser storage unnecessarily.
+
+---
+
+# 177. GRAPHQL CLIENT
+
+Centralize:
+
+```text
+GraphQL client
+auth
+error handling
+cache policy
+retry
+network detection
+```
+
+---
+
+# 178. FORM VALIDATION
+
+Validate on:
+
+```text
+frontend
+GraphQL input
+application service
+database constraints
+```
+
+Frontend validation is never sufficient.
+
+---
+
+# 179. FINANCIAL FORM INPUTS
+
+Money inputs must:
+
+* accept decimal values
+* normalize formatting
+* reject negative values where inappropriate
+* reject invalid currency
+* preserve exact decimal precision
+
+Never use floating-point arithmetic.
+
+---
+
+# 180. WEB ACCESSIBILITY
+
+Every form:
+
+```text
+label
+validation
+error
+success
+loading
+```
+
+must be accessible.
+
+---
+
+# 181. EMPTY STATES
+
+Every collection page needs an intentional empty state.
+
+Example:
+
+```text
+You don't have any savings plans yet.
+
+Start your first Digital Ajo plan.
+```
+
+---
+
+# 182. ERROR STATES
+
+Do not show:
+
+```text
+Something went wrong
+```
+
+without a recovery path.
+
+Provide:
+
+```text
+Retry
+Contact support
+Reference
+```
+
+where appropriate.
+
+---
+
+# 183. LOADING STATES
+
+Avoid blank screens.
+
+Use:
+
+```text
+skeleton
+spinner
+progress
+```
+
+appropriately.
+
+---
+
+# 184. RESPONSIVE TABLES
+
+Financial tables must work on mobile.
+
+Do not create unreadable desktop-only tables.
+
+---
+
+# 185. GRAPHQL CACHE INVALIDATION
+
+After financial mutations, ensure affected queries are correctly refreshed.
+
+Never show stale balances after a confirmed transaction.
+
+---
+
+# 186. REAL-TIME PREPARATION
+
+Architect for future WebSocket/subscription support.
+
+Do not implement unnecessary real-time infrastructure in V1.
+
+---
+
+# 187. EMAIL
+
+Email should be optional, not required for rural users.
+
+Phone/SMS must remain first-class.
+
+---
+
+# 188. USSD PRINCIPLE
+
+USSD must eventually expose:
+
+```text
+Balance
+Savings
+Payment
+Transactions
+Loan
+Repayment
+Agent
+Help
+```
+
+Keep menu depth low.
+
+---
+
+# 189. RURAL-FIRST PRINCIPLE
+
+Assume:
+
+```text
+low bandwidth
+intermittent network
+low-end Android
+shared devices
+limited digital literacy
+USSD users
+agent-assisted users
+```
+
+The architecture must accommodate this.
+
+---
+
+# 190. AGENT-FIRST OPERATIONS
+
+The agent application should eventually be able to onboard a customer without the customer owning a smartphone.
+
+This is a core RFUND use case.
+
+---
+
+# 191. PRODUCT PHILOSOPHY
+
+RFUND must work through:
+
+```text
+Smartphone
+Web
+USSD
+Agent
+```
+
+without creating separate financial systems.
+
+All channels connect to the same backend.
+
+---
+
+# 192. WEB + API COMPLETION CRITERIA
+
+The web/API build is NOT complete when:
+
+```text
+pages render
+```
+
+It is complete when:
+
+```text
+database works
+authentication works
+authorization works
+financial ledger works
+payments work
+webhooks work
+savings work
+transactions work
+audit works
+tests pass
+security tests pass
+documentation exists
+deployment works
+recovery works
+```
+
+---
+
+# 193. DEFINITION OF DONE
+
+A feature is complete only when:
+
+1. database model exists
+2. migration exists
+3. domain logic exists
+4. GraphQL query/mutation exists where required
+5. permissions exist
+6. validation exists
+7. audit exists where required
+8. frontend exists
+9. loading state exists
+10. empty state exists
+11. error state exists
+12. unit tests exist
+13. integration tests exist where required
+14. documentation exists
+15. logging exists where appropriate
+16. security has been considered
+17. concurrency has been considered
+18. financial invariants have been tested
+19. no TODO remains in the production path
+
+---
+
+# 194. TODO POLICY
+
+Do not leave:
+
+```text
+TODO
+FIXME
+IMPLEMENT LATER
+TEMP
+PLACEHOLDER
+MOCK
+```
+
+inside production financial workflows.
+
+If something is intentionally outside V1 scope, document it explicitly in:
+
+```text
+docs/ROADMAP.md
+```
+
+and make sure the current implementation is safe without it.
+
+---
+
+# 195. IMPLEMENTATION ORDER
+
+Build in this order.
+
+## Phase 0
+
+Repository audit.
+
+Produce:
+
+```text
+ARCHITECTURE_ASSESSMENT.md
+IMPLEMENTATION_PLAN.md
+DOMAIN_MODEL.md
+```
+
+Do not begin random coding before this assessment.
+
+---
+
+## Phase 1
+
+Infrastructure:
+
+```text
+Django
+PostgreSQL
+Redis
+Celery
+Docker
+configuration
+logging
+testing
+```
+
+---
+
+## Phase 2
+
+Identity:
+
+```text
+authentication
+roles
+permissions
+customers
+KYC
+audit
+```
+
+---
+
+## Phase 3
+
+Ledger:
+
+```text
+financial accounts
+ledger
+transactions
+entries
+posting
+reversal
+idempotency
+```
+
+This phase must be exceptionally well tested.
+
+---
+
+## Phase 4
+
+Payments:
+
+```text
+Payment abstraction
+Paystack
+webhooks
+payment states
+reconciliation
+```
+
+---
+
+## Phase 5
+
+Savings:
+
+```text
+products
+Digital Ajo
+schedules
+contributions
+goals
+payouts
+```
+
+---
+
+## Phase 6
+
+Web customer application.
+
+---
+
+## Phase 7
+
+Agent system.
+
+---
+
+## Phase 8
+
+Loans.
+
+---
+
+## Phase 9
+
+FarmerCash.
+
+---
+
+## Phase 10
+
+Risk/fraud/reporting.
+
+---
+
+# 196. DO NOT BUILD MOBILE YET
+
+The current assignment is:
+
+> Django backend + GraphQL + production web application.
+
+However, the API must be designed so Flutter can consume it later.
+
+Do not waste implementation time creating a mobile application now.
+
+---
+
+# 197. DO NOT BUILD USSD YET
+
+Prepare the backend architecture for USSD.
+
+Do not build a fake USSD integration inside the web application.
+
+USSD will be a subsequent implementation phase using the same application services.
+
+---
+
+# 198. WEB APP AUTHENTICATION
+
+Implement real authentication.
+
+No hardcoded demo login.
+
+Provide:
+
+```text
+signup
+login
+logout
+password reset
+OTP architecture
+session/token management
+```
+
+---
+
+# 199. CUSTOMER JOURNEY TEST
+
+Automate the complete journey:
+
+```text
+Customer signup
+ ↓
+Login
+ ↓
+Profile
+ ↓
+KYC
+ ↓
+Create savings plan
+ ↓
+Initialize payment
+ ↓
+Payment success
+ ↓
+Webhook
+ ↓
+Ledger
+ ↓
+Savings contribution
+ ↓
+Updated balance
+ ↓
+Notification
+ ↓
+Transaction history
+```
+
+This test must pass before the savings/payment module is considered complete.
+
+---
+
+# 200. LOAN JOURNEY TEST
+
+Automate:
+
+```text
+Customer
+ ↓
+Loan application
+ ↓
+Eligibility
+ ↓
+Verification
+ ↓
+Approval
+ ↓
+Offer
+ ↓
+Acceptance
+ ↓
+Disbursement
+ ↓
+Ledger
+ ↓
+Repayment schedule
+ ↓
+Repayment
+ ↓
+Ledger
+ ↓
+Updated balance
+```
+
+---
+
+# 201. RECONCILIATION JOURNEY TEST
+
+Automate:
+
+```text
+Paystack transaction
+ ↓
+Webhook
+ ↓
+Payment
+ ↓
+Ledger
+ ↓
+Reconciliation
+ ↓
+MATCHED
+```
+
+and:
+
+```text
+provider amount != internal amount
+ ↓
+RECONCILIATION_EXCEPTION
+```
+
+---
+
+# 202. DUPLICATE PAYMENT TEST
+
+Simulate the same webhook multiple times.
+
+Expected:
+
+```text
+one payment
+one ledger posting
+one customer balance impact
+```
+
+---
+
+# 203. CONCURRENT TRANSACTION TEST
+
+Simulate two simultaneous operations.
+
+Expected:
+
+```text
+no double credit
+no double debit
+no inconsistent balance
+```
+
+---
+
+# 204. ROLLBACK TEST
+
+Simulate a failure halfway through a transaction.
+
+Verify that no partial financial state remains.
+
+---
+
+# 205. REVERSAL TEST
+
+Post:
+
+```text
+₦10,000
+```
+
+then reverse.
+
+Verify:
+
+```text
+net effect = ₦0
+```
+
+and both transactions remain auditable.
+
+---
+
+# 206. FRONTEND END-TO-END TESTS
+
+Use Playwright.
+
+Test:
+
+```text
+signup
+login
+dashboard
+create savings
+payment flow
+transaction history
+loan application
+profile
+support
+```
+
+---
+
+# 207. ADMIN END-TO-END TESTS
+
+Test:
+
+```text
+customer search
+KYC review
+agent management
+loan review
+payment inspection
+reconciliation
+audit
+reporting
+```
+
+---
+
+# 208. AGENT END-TO-END TESTS
+
+Test:
+
+```text
+login
+customer search
+customer registration
+cash collection
+receipt
+transaction history
+settlement
+```
+
+---
+
+# 209. DOCUMENTATION COMPLETENESS
+
+At completion, another senior engineer should be able to clone the repository and understand:
+
+```text
+what RFUND does
+how the architecture works
+how to run it
+how to test it
+how money moves
+how the ledger works
+how Paystack works
+how to deploy
+how to restore
+how to troubleshoot
+```
+
+without asking the original developer.
+
+---
+
+# 210. AI AGENT BEHAVIOR
+
+You are an engineering agent.
+
+Do not simply generate large amounts of code.
+
+Before implementing each phase:
+
+1. inspect current implementation
+2. identify dependencies
+3. identify affected domains
+4. identify database changes
+5. identify security implications
+6. implement
+7. test
+8. inspect test results
+9. fix failures
+10. update documentation
+
+Never declare completion because code was generated.
+
+Declare completion only after verification.
+
+---
+
+# 211. NO ASSUMPTION POLICY
+
+If an important requirement is ambiguous:
+
+Do not silently invent a financial rule.
+
+Instead:
+
+1. identify the ambiguity
+2. choose the safest reversible implementation if possible
+3. document the assumption
+4. isolate it behind configuration/domain policy
+5. continue without contaminating the architecture
+
+Financial assumptions must never be buried in arbitrary code.
+
+---
+
+# 212. CODE REVIEW MODE
+
+After each major phase, perform a self-review.
+
+Ask:
+
+```text
+What can lose money?
+What can duplicate money?
+What can expose data?
+What can bypass authorization?
+What happens when the provider fails?
+What happens when the database fails?
+What happens when two requests happen simultaneously?
+What happens when the webhook arrives twice?
+What happens when the user loses internet?
+What happens when the job runs twice?
+What happens when an administrator makes a mistake?
+```
+
+Fix identified problems before moving on.
+
+---
+
+# 213. SECURITY REVIEW
+
+At the end of every major milestone perform:
+
+```text
+authentication review
+authorization review
+input validation review
+secret review
+file upload review
+GraphQL review
+financial integrity review
+audit review
+logging review
+```
+
+---
+
+# 214. FINANCIAL REVIEW
+
+At every financial module completion verify:
+
+```text
+No float arithmetic
+No balance mutation shortcuts
+No missing ledger entries
+No unbalanced transactions
+No duplicate provider events
+No duplicate idempotency keys
+No destructive financial deletion
+No unaudited manual adjustment
+No ambiguous transaction state
+```
+
+---
+
+# 215. PERFORMANCE REVIEW
+
+Check:
+
+```text
+database indexes
+N+1 queries
+GraphQL query complexity
+pagination
+Celery task volume
+large reports
+large transaction history
+```
+
+---
+
+# 216. FINAL QA GATE
+
+Before saying the project is complete, run:
+
+```bash
+python manage.py check
+python manage.py test
+pytest
+```
+
+Frontend:
+
+```bash
+npm run lint
+npm run typecheck
+npm run test
+npm run build
+```
+
+E2E:
+
+```bash
+npx playwright test
+```
+
+Also run:
+
+```text
+security checks
+migration checks
+dependency checks
+```
+
+Fix all failures.
+
+Do not hide failures.
+
+---
+
+# 217. FINAL DELIVERABLES
+
+The final repository must contain:
+
+```text
+working Django backend
+working GraphQL API
+working PostgreSQL schema
+working ledger
+working authentication
+working authorization
+working savings
+working Paystack integration
+working webhooks
+working reconciliation
+working customer web application
+working admin interface
+working agent interface
+working loan foundation
+working FarmerCash foundation
+automated tests
+Docker setup
+CI/CD
+documentation
+architecture diagrams
+database ERD
+environment examples
+deployment instructions
+backup instructions
+security documentation
+```
+
+---
+
+# 218. FINAL REPORT
+
+When implementation is complete, produce:
+
+```text
+IMPLEMENTATION_REPORT.md
+```
+
+containing:
+
+1. features implemented
+2. architecture
+3. database
+4. GraphQL
+5. payment integration
+6. ledger
+7. savings
+8. loans
+9. agent system
+10. security
+11. tests
+12. coverage
+13. deployment
+14. known limitations
+15. documented assumptions
+16. future roadmap
+
+---
+
+# 219. CRITICAL FINAL RULE
+
+Never optimize for:
+
+> "How much code can I generate?"
+
+Optimize for:
+
+> **"Can this system safely process real financial activity and remain understandable, auditable, recoverable and extensible?"**
+
+If the answer is no, the implementation is not finished.
+
+---
+
+# 220. FINAL ARCHITECTURE
+
+The intended end-state architecture is:
+
+```text
+                           RFUND
+                             │
+              ┌──────────────┴──────────────┐
+              │                             │
+          Public Web                  Authenticated Web
+              │                             │
+              └──────────────┬──────────────┘
+                             │
+                        GraphQL API
+                             │
+                    ┌────────▼────────┐
+                    │ Django Modular  │
+                    │     Monolith    │
+                    └────────┬────────┘
+                             │
+        ┌────────────────────┼────────────────────┐
+        │                    │                    │
+     Identity             Savings               Loans
+        │                    │                    │
+     Customers            Digital Ajo         FarmerCash
+        │                    │                    │
+     Agents             Goals/Schedules       Repayment
+        │                    │                    │
+        └────────────────────┼────────────────────┘
+                             │
+                         Ledger Core
+                             │
+              ┌──────────────┼──────────────┐
+              │              │              │
+          Payments       Reconciliation    Risk
+              │              │              │
+          Paystack          Bank          Fraud
+              │
+       ┌──────┴───────┐
+       │              │
+    Webhooks       Transfers
+       │
+       └──────────────┬───────────────
+                      │
+                  PostgreSQL
+                      │
+           ┌──────────┴──────────┐
+           │                     │
+         Redis                 Celery
+           │                     │
+           └──────────┬──────────┘
+                      │
+              Notifications
+                      │
+          ┌───────────┼───────────┐
+          │           │           │
+         SMS        Email       Push
+
+Future channels:
+
+Flutter Mobile
+USSD
+WhatsApp
+Agent Mobile
+Partner APIs
+```
+
+---
+
+# 221. START NOW
+
+Begin with **Phase 0 — Repository Audit**.
+
+Do NOT immediately generate the entire application.
+
+First inspect the existing RFUND prototype/repository and produce:
+
+```text
+1. Current architecture assessment
+2. Existing features
+3. Existing reusable components
+4. Existing assets
+5. Missing components
+6. Proposed final architecture
+7. Proposed database/domain model
+8. GraphQL architecture
+9. Security architecture
+10. Payment architecture
+11. Implementation phases
+12. Risks and ambiguities
+13. Exact files that will be created/modified
+```
+
+Then begin implementation phase-by-phase.
+
+After each phase:
+
+```text
+IMPLEMENT
+→ TEST
+→ REVIEW
+→ FIX
+→ DOCUMENT
+→ VERIFY
+```
+
+Do not skip verification because the code "looks correct."
+
+The financial core, ledger, payment processing, reconciliation, authorization, and auditability receive the highest engineering priority.
+
+**Build RFUND as a real financial infrastructure platform, not as a demo fintech website.**

@@ -1,0 +1,10 @@
+Django==5.1.4
+strawberry-graphql-django==0.52.0
+celery[redis]==5.4.0
+redis==5.2.1
+psycopg[binary]==3.2.3
+python-dateutil==2.9.0.post0
+httpx==0.28.1
+gunicorn==23.0.0
+whitenoise==6.8.2
+argon2-cffi
