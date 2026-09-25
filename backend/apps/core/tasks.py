@@ -34,10 +34,14 @@ def apply_late_penalties_task() -> dict:
 
 
 @app.task(name="rfund.run_reconciliation")
-def run_reconciliation_task(provider: str = "local") -> dict:
+def run_reconciliation_task(provider: str | None = None) -> dict:
+    from django.conf import settings
+
     from apps.settlements.services import run_reconciliation
 
-    run = run_reconciliation(provider=provider)
+    # Default to the deployment's configured provider — a beat-triggered run
+    # must never hardcode a provider that isn't live on this deployment.
+    run = run_reconciliation(provider=provider or settings.PAYMENT_PROVIDER)
     return {"run_id": str(run.pk), "matched": run.matched_count, "exceptions": run.exception_count}
 
 

@@ -1,12 +1,15 @@
-"""Celery beat schedule (spec §154). Every task idempotent."""
+"""Celery beat schedule (spec §154). Every task idempotent.
+
+Pure schedule dict — applied by config/celery_app.py at app startup so both
+the worker and the beat process see the same schedule. Previously this
+module was never imported, leaving the periodic tasks unscheduled.
+"""
 
 from __future__ import annotations
 
 from celery.schedules import crontab
 
-from config.celery_app import app as celery_app
-
-celery_app.conf.beat_schedule = {
+BEAT_SCHEDULE: dict = {
     "dispatch-outbox": {
         "task": "rfund.dispatch_outbox",
         "schedule": 30.0,
