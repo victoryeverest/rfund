@@ -11,7 +11,7 @@ export const LOGIN_MUTATION = gql`
       accessToken
       refreshToken
       expiresInMinutes
-      user { id phone firstName lastName }
+      user { id phone firstName lastName roles }
     }
   }
 `;
@@ -526,6 +526,52 @@ export const ADMIN_REVERSE_TRANSACTION_MUTATION = gql`
   mutation ReverseTransaction($transactionId: ID!, $reason: String!) {
     reverseLedgerTransaction(transactionId: $transactionId, reason: $reason) {
       id reference transactionType status
+    }
+  }
+`;
+
+export const NOTIFICATIONS_QUERY = gql`
+  query Notifications($first: Int) {
+    notifications(first: $first) {
+      items { id eventCode label amount reference dispatched createdAt }
+      totalCount
+    }
+  }
+`;
+
+export const REJECT_LOAN_OFFER_MUTATION = gql`
+  mutation RejectOffer($applicationId: ID!) {
+    rejectLoanOffer(applicationId: $applicationId) { id reference state }
+  }
+`;
+
+export const UPDATE_GOAL_MUTATION = gql`
+  mutation UpdateGoal($goalId: ID!, $input: UpdateGoalInput!) {
+    updateSavingsGoal(goalId: $goalId, input: $input) {
+      id name description targetAmount targetDate contributionFrequency contributionAmount
+    }
+  }
+`;
+
+export const ADMIN_SET_CUSTOMER_STATUS_MUTATION = gql`
+  mutation SetCustomerStatus($customerId: ID!, $status: String!, $reason: String) {
+    setCustomerStatus(customerId: $customerId, status: $status, reason: $reason)
+  }
+`;
+
+export const REQUEST_OTP_MUTATION = gql`
+  mutation RequestOtp($phone: String!, $purpose: String!) {
+    requestOtp(phone: $phone, purpose: $purpose) { sent devCode }
+  }
+`;
+
+export const LOGIN_WITH_OTP_MUTATION = gql`
+  mutation LoginWithOtp($phone: String!, $code: String!) {
+    loginWithOtp(phone: $phone, code: $code) {
+      accessToken
+      refreshToken
+      expiresInMinutes
+      user { id phone firstName lastName roles }
     }
   }
 `;

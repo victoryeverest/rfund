@@ -16,6 +16,7 @@ class AuthUser:
     email: str
     first_name: str
     last_name: str
+    roles: list[str] = strawberry.field(default_factory=list)
 
     @classmethod
     def from_user(cls, user) -> "AuthUser":
@@ -25,6 +26,7 @@ class AuthUser:
             email=user.email,
             first_name=user.first_name,
             last_name=user.last_name,
+            roles=user.role_codes(),
         )
 
 
@@ -34,6 +36,14 @@ class TokenPair:
     refresh_token: str
     expires_in_minutes: int
     user: AuthUser
+
+
+@strawberry.type
+class RequestOtpResult:
+    sent: bool
+    # Populated ONLY in development (settings.DEBUG) so the web UI can show
+    # the code without an SMS gateway. Always null in production.
+    dev_code: str | None = None
 
 
 @strawberry.input
@@ -77,26 +87,46 @@ class AuthMutations:
         )
 
     @strawberry.mutation
-    def request_otp(self, info: Info, phone: str, purpose: str = "SIGNUP") -> bool:
+    def request_otp(self, info: Info, phone: str, purpose: str = "SIGNUP") -> RequestOtpResult:
         from apps.accounts.models import OTPCode
         from apps.core.errors import ValidationFailed
+        from django.conf import settings
 
         ctx = get_context(info)
         valid = {"SIGNUP", "LOGIN", "PASSWORD_RESET"}
         if purpose not in valid:
             raise ValidationFailed("Unsupported OTP purpose.")
-        auth.request_otp(
+        otp = auth.request_otp(
             phone=phone,
             purpose=OTPCode.Purpose(purpose),
             ip_address=ctx.ip_address,
         )
-        return True
+        dev_code = getattr(otp, "raw_code", None) if settings.DEBUG else None
+        return RequestOtpResult(sent=True, dev_code=dev_code)
 
     @strawberry.mutation
     def verify_otp(self, info: Info, phone: str, code: str, purpose: str = "SIGNUP") -> bool:
         from apps.accounts.models import OTPCode
 
         return auth.verify_otp(phone=phone, purpose=OTPCode.Purpose(purpose), code=code)
+
+    @strawberry.mutation
+    def login_with_otp(self, info: Info, phone: str, code: str, device_label: str = "") -> TokenPair:
+        from django.conf import settings
+
+        ctx = get_context(info)
+        user, issued = auth.login_with_otp(
+            phone=phone,
+            code=code,
+            ip_address=ctx.ip_address,
+            device_label=device_label or "otp-login",
+        )
+        return TokenPair(
+            access_token=issued.access_raw,
+            refresh_token=issued.refresh_raw,
+            expires_in_minutes=int(settings.ACCESS_TOKEN_TTL.total_seconds() // 60),
+            user=AuthUser.from_user(user),
+        )
 
     @strawberry.mutation
     def login(self, info: Info, input: LoginInput) -> TokenPair:

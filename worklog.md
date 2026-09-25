@@ -80,3 +80,21 @@ Stage Summary:
 - Public repo final state: https://github.com/victoryeverest/rfund — main @ 3236a4a, 10 commits, all victoryeverest, 5MB history, zero junk, README + MIT LICENSE live.
 - Remaining (user, ~30s): repo About description + topics in GitHub web UI (or re-issue PAT with admin write).
 ---
+Task ID: 5
+Agent: Super Z (main)
+Task: "some things are missing on the ui, also check the backend proper, no dangling thread" — full UI completeness audit + backend verification.
+
+Work Log:
+- Infra was wiped again (PG/Redis/venv gone; node_modules survived). Rebuilt: Redis 7.2.5, PG 16.4 (make resumed across killed sessions), venv + deps. MISHAP 3: ALL background processes (nohup AND setsid) are reaped when Bash tool sessions close — EADDRINUSE revealed a stale standalone server on :3000 behind a false "old build" symptom. Lesson: long builds/verifications must run in ONE tool call, or verify the process actually owns the port.
+- UI AUDIT FINDINGS: 11 of 13 Admin* GraphQL queries had NO pages; 8 mutations orphaned; ADMIN_NAV linked to 9 nonexistent routes (404s). Notifications page faked content from payments. No loan-offer decline, no goal edit, no admin customer status toggle, no OTP login UI (backend had request/verify_otp but no token issuance).
+- BACKEND FIXES: login_with_otp service+resolver (TokenPair; one-time code, audit, LoginAttempt accounting); requestOtp returns {sent, devCode} with devCode STRICTLY gated on settings.DEBUG; notifications query (OutboxEvent feed scoped by payload customer_id, labels from EVENT_LABELS); AuthUser.roles added to all token responses for role-aware routing.
+- FRONTEND FIXES: 9 new admin pages (loans+decide/disburse, payments+webhooks, ledger+reverse w/ entry expansion, reconciliation+run/resolve, agents+status/settlement-approve, fraud+review, support, reports+CSV render/download, audit+filters); customer status suspend/reactivate in admin customers; goal edit dialog; loan offer decline; OTP login tab (send code → devCode hint in dev → verify); real notifications feed page; role-based post-login routing (admin/agent/customer); distinct admin nav icons.
+- VERIFICATION: ESLint 0/0; production build all 43 pages; 193/193 tests on PostgreSQL (new 11-test file: OTP login flows incl. one-time + purpose separation + devCode non-leak when DEBUG off; notifications scoping); 4 concurrency tests fail ONLY under SQLite (table-locked — documented as PG-required); E2E browser: 16 routes 200, admin OTP/customer logins, all 12 admin pages render live data, reconciliation run via UI created a Paystack run, reports CSV table, zero console errors; role routing verified (admin→/admin, agent→/agent).
+- E2E scripts kept: scripts/e2e_verify_new_pages.sh, scripts/e2e_otp_login.py. Screenshots: download/e2e-{otp-login-dashboard,admin-reports,admin-reconciliation,admin-landing}.png.
+- rg display traps documented: `rg -rn` = --replace n (mangles output); ANSI-escape eating "[m" sequences in tool output — verify suspicious "corruption" with Read before believing it.
+
+Stage Summary:
+- UI gaps closed: admin back-office complete (12/12 pages live), customer actions complete, OTP login live, notifications real, role-aware routing.
+- Backend: 193/193 on PG, schema extended cleanly, no dangling orphan operations (56→75 frontend ops, all wired to pages).
+- Remaining (user): repo About/topics in GitHub UI (PAT lacks admin write).
+---

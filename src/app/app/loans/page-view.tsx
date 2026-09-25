@@ -15,7 +15,7 @@ import {
 } from "@/components/rfund/primitives";
 import {
   LOAN_PRODUCTS_QUERY, LOAN_ELIGIBILITY_QUERY, LOAN_APPLICATIONS_QUERY, LOANS_QUERY,
-  APPLY_FOR_LOAN_MUTATION, ACCEPT_LOAN_OFFER_MUTATION,
+  APPLY_FOR_LOAN_MUTATION, ACCEPT_LOAN_OFFER_MUTATION, REJECT_LOAN_OFFER_MUTATION,
 } from "@/graphql/operations";
 import { formatNaira, formatDate, titleize } from "@/lib/money";
 import { extractErrorMessage } from "@/lib/graphql";
@@ -222,12 +222,22 @@ export default function LoansPage() {
   const loansQuery = useQuery(LOANS_QUERY);
   const [applyOpen, setApplyOpen] = useState(false);
   const [acceptOffer] = useMutation(ACCEPT_LOAN_OFFER_MUTATION);
+  const [rejectOffer] = useMutation(REJECT_LOAN_OFFER_MUTATION);
 
   const applications = appsQuery.data?.loanApplications?.items ?? [];
   const loans = loansQuery.data?.loans ?? [];
 
   const accept = async (applicationId: string) => {
     const result = await acceptOffer({ variables: { applicationId } });
+    if (result.errors?.length) {
+      alert(extractErrorMessage(result.errors));
+      return;
+    }
+    await appsQuery.refetch();
+  };
+
+  const reject = async (applicationId: string) => {
+    const result = await rejectOffer({ variables: { applicationId } });
     if (result.errors?.length) {
       alert(extractErrorMessage(result.errors));
       return;
@@ -342,6 +352,13 @@ export default function LoansPage() {
                       className="min-h-10 bg-rfund-700 font-bold text-white hover:bg-rfund-800"
                     >
                       Accept offer
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="min-h-10 border-destructive/40 font-bold text-destructive hover:bg-destructive/10"
+                      onClick={() => reject(app.id)}
+                    >
+                      Decline
                     </Button>
                   </div>
                 </div>

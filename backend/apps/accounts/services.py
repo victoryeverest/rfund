@@ -119,6 +119,9 @@ def request_otp(
         "otp_requested",
         extra={"event": "otp_requested", "provider": phone, "purpose": purpose},
     )
+    # Transient (never persisted): lets the GraphQL layer surface the raw code
+    # to the UI in development only (settings.DEBUG-gated in the resolver).
+    otp.raw_code = code
     return otp
 
 
@@ -302,6 +305,39 @@ def login(
         actor=user,
         ip_address=ip_address,
         request_id=get_request_id(),
+    )
+    return user, issued
+
+
+def login_with_otp(
+    *,
+    phone: str,
+    code: str,
+    ip_address=None,
+    device_label: str = "",
+) -> tuple[User, "IssuedTokens"]:
+    """Phone-first OTP login (spec §60): verify a LOGIN-purpose code, then
+    issue a token pair. Mirrors login() auditing and rate-limit accounting;
+    failed verification raises inside verify_otp before any token is issued."""
+    verify_otp(phone=phone, purpose=OTPCode.Purpose.LOGIN, code=code)
+    phone_n = normalize_phone(phone)
+    user = User.objects.filter(phone=phone_n).first()
+    if user is None:
+        LoginAttempt.objects.create(phone=phone_n, ip_address=ip_address, success=False)
+        raise AuthenticationRequired("No account exists for this phone number.")
+    if not user.is_active:
+        LoginAttempt.objects.create(phone=phone_n, ip_address=ip_address, success=False)
+        raise AuthenticationRequired("This account is not active.")
+    LoginAttempt.objects.create(phone=phone_n, ip_address=ip_address, success=True)
+    issued = issue_token_pair(user, device_label=device_label, ip_address=ip_address)
+    record_audit(
+        action=AuditAction.LOGIN,
+        resource_type="user",
+        resource_id=str(user.pk),
+        actor=user,
+        ip_address=ip_address,
+        request_id=get_request_id(),
+        after={"method": "otp"},
     )
     return user, issued
 

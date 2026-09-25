@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
             refreshToken(refreshToken: $token) {
               accessToken
               refreshToken
-              user { id phone firstName lastName }
+              user { id phone firstName lastName roles }
             }
           }
         `,

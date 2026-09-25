@@ -20,6 +20,7 @@ export type SessionUser = {
   phone: string;
   firstName: string;
   lastName: string;
+  roles?: string[];
 };
 
 type AuthState = {

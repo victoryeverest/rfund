@@ -7,17 +7,38 @@ import { Input } from "@/components/ui/input";
 import {
   PageHeader, LoadingState, ErrorState, EmptyState, StatusBadge, SectionCard,
 } from "@/components/rfund/primitives";
-import { ADMIN_CUSTOMERS_QUERY } from "@/graphql/operations";
+import { ADMIN_CUSTOMERS_QUERY, ADMIN_SET_CUSTOMER_STATUS_MUTATION } from "@/graphql/operations";
 import { formatDate, formatDateTime, titleize } from "@/lib/money";
-import { Search } from "lucide-react";
+import { extractErrorMessage } from "@/lib/graphql";
+import { Search, AlertCircle } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 export default function AdminCustomersPage() {
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("");
+  const [opError, setOpError] = useState<string | null>(null);
   const { data, loading, error, refetch } = useQuery(ADMIN_CUSTOMERS_QUERY, {
     variables: { search: search || null, status: status || null, first: 30 },
     fetchPolicy: "cache-and-network",
   });
+  const [setCustomerStatus] = useMutation(ADMIN_SET_CUSTOMER_STATUS_MUTATION);
+
+  const changeStatus = async (customerId: string, newStatus: string) => {
+    const reason =
+      newStatus === "ACTIVE"
+        ? "reactivated by admin"
+        : window.prompt(`Reason for ${newStatus.toLowerCase()} (recorded in the audit trail):`);
+    if (reason === null) return;
+    setOpError(null);
+    const result = await setCustomerStatus({
+      variables: { customerId, status: newStatus, reason: reason || undefined },
+    });
+    if (result.errors?.length) {
+      setOpError(extractErrorMessage(result.errors));
+      return;
+    }
+    await refetch();
+  };
 
   const customers = data?.adminCustomers?.items ?? [];
 
@@ -47,6 +68,12 @@ export default function AdminCustomersPage() {
         ))}
       </div>
 
+      {opError ? (
+        <Alert variant="destructive" className="mb-4">
+          <AlertCircle className="h-4 w-4" aria-hidden />
+          <AlertDescription>{opError}</AlertDescription>
+        </Alert>
+      ) : null}
       {loading && !data ? (
         <LoadingState />
       ) : error ? (
@@ -65,7 +92,8 @@ export default function AdminCustomersPage() {
                   <th className="py-2 pr-4 font-semibold">Location</th>
                   <th className="py-2 pr-4 font-semibold">KYC</th>
                   <th className="py-2 pr-4 font-semibold">Status</th>
-                  <th className="py-2 font-semibold">Joined</th>
+                  <th className="py-2 pr-4 font-semibold">Joined</th>
+                  <th className="py-2 font-semibold">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -77,7 +105,30 @@ export default function AdminCustomersPage() {
                     <td className="py-2 pr-4 text-muted-foreground">{[c.state, c.lga].filter(Boolean).join(", ") || "—"}</td>
                     <td className="py-2 pr-4">{c.kycTier}</td>
                     <td className="py-2 pr-4"><StatusBadge status={c.status} /></td>
-                    <td className="py-2 text-muted-foreground">{formatDate(c.createdAt)}</td>
+                    <td className="py-2 pr-4 text-muted-foreground">{formatDate(c.createdAt)}</td>
+                    <td className="py-2">
+                      {c.status === "ACTIVE" ? (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="min-h-9 border-destructive/40 font-bold text-destructive hover:bg-destructive/10"
+                          onClick={() => changeStatus(c.id, "SUSPENDED")}
+                        >
+                          Suspend
+                        </Button>
+                      ) : c.status === "SUSPENDED" || c.status === "DEACTIVATED" ? (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="min-h-9 font-bold text-rfund-700 hover:bg-rfund-100"
+                          onClick={() => changeStatus(c.id, "ACTIVE")}
+                        >
+                          Reactivate
+                        </Button>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>

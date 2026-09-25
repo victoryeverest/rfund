@@ -95,6 +95,29 @@ class Dashboard:
 
 
 @strawberry.type
+class NotificationEvent:
+    """A customer-scoped outbox event (spec §47, §48, §107).
+
+    Financial actions commit these in the same transaction; the UI renders
+    them as the notification feed alongside SMS delivery state.
+    """
+
+    id: strawberry.ID
+    event_code: str
+    label: str
+    amount: str | None
+    reference: str | None
+    dispatched: bool
+    created_at: str
+
+
+@strawberry.type
+class NotificationConnection:
+    items: list[NotificationEvent]
+    total_count: int
+
+
+@strawberry.type
 class MeQueries:
     @strawberry.field
     def me(self, info: Info) -> CustomerType:
@@ -111,6 +134,39 @@ class MeQueries:
             verified_at=str(profile.verified_at) if profile.verified_at else None,
             failure_reason=profile.failure_reason,
         )
+
+    @strawberry.field
+    def notifications(self, info: Info, first: int = 30) -> NotificationConnection:
+        """Recent notification events for the signed-in customer."""
+        from apps.notifications.models import OutboxEvent
+        from apps.notifications.services import EVENT_LABELS
+
+        customer = current_customer(info)
+        qs = OutboxEvent.objects.filter(
+            payload__customer_id=str(customer.pk)
+        ).order_by("-created_at")
+        total = qs.count()
+        items = []
+        for event in qs[: max(1, min(first, 100))]:
+            payload = event.payload or {}
+            reference = (
+                payload.get("reference")
+                or payload.get("plan_reference")
+                or payload.get("loan_reference")
+                or payload.get("application_reference")
+            )
+            items.append(
+                NotificationEvent(
+                    id=strawberry.ID(str(event.pk)),
+                    event_code=event.event_code,
+                    label=EVENT_LABELS.get(event.event_code, event.event_code.replace("_", " ").title()),
+                    amount=payload.get("amount"),
+                    reference=reference,
+                    dispatched=event.dispatched,
+                    created_at=str(event.created_at),
+                )
+            )
+        return NotificationConnection(items=items, total_count=total)
 
     @strawberry.field
     def dashboard(self, info: Info) -> Dashboard:

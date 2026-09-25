@@ -14,11 +14,12 @@ import {
 } from "@/components/rfund/primitives";
 import {
   SAVINGS_GOALS_QUERY, CREATE_GOAL_MUTATION, DELETE_GOAL_MUTATION,
+  UPDATE_GOAL_MUTATION,
   MAKE_PAYMENT_MUTATION, VERIFY_PAYMENT_MUTATION,
 } from "@/graphql/operations";
 import { formatNaira, formatDate, titleize } from "@/lib/money";
 import { extractErrorMessage } from "@/lib/graphql";
-import { Plus, Target, Trash2, AlertCircle } from "lucide-react";
+import { Plus, Target, Trash2, Pencil, AlertCircle } from "lucide-react";
 
 const GOAL_IDEAS = ["School fees", "Farm inputs", "Business stock", "Emergency fund", "Wedding", "Household"];
 
@@ -164,9 +165,141 @@ function CreateGoalDialog({ open, onOpenChange, onCreated }: {
   );
 }
 
+function EditGoalDialog({ goal, open, onOpenChange, onSaved }: {
+  goal: any;
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  onSaved: () => void;
+}) {
+  const [form, setForm] = useState({
+    name: goal?.name ?? "",
+    targetAmount: goal ? String(goal.targetAmount) : "",
+    targetDate: goal?.targetDate ? goal.targetDate.slice(0, 10) : "",
+    contributionFrequency: goal?.contributionFrequency ?? "MONTHLY",
+    contributionAmount: goal ? String(goal.contributionAmount ?? "") : "",
+  });
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [updateGoal] = useMutation(UPDATE_GOAL_MUTATION);
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setBusy(true);
+    try {
+      const result = await updateGoal({
+        variables: {
+          goalId: goal.id,
+          input: {
+            name: form.name,
+            targetAmount: form.targetAmount,
+            targetDate: form.targetDate || null,
+            contributionFrequency: form.contributionFrequency,
+            contributionAmount: form.contributionAmount,
+          },
+        },
+      });
+      if (result.errors?.length) {
+        setError(extractErrorMessage(result.errors));
+        return;
+      }
+      onSaved();
+      onOpenChange(false);
+    } catch {
+      setError("RFUND is not reachable right now.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="text-rfund-900">Edit goal</DialogTitle>
+          <DialogDescription>Adjust the target or your contribution plan.</DialogDescription>
+        </DialogHeader>
+        <form onSubmit={submit} className="space-y-4">
+          {error ? (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" aria-hidden />
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          ) : null}
+          <div className="grid gap-1.5">
+            <Label htmlFor="edit-goal-name">Goal name</Label>
+            <Input
+              id="edit-goal-name"
+              required
+              className="min-h-12"
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+            />
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-1.5">
+              <Label htmlFor="edit-goal-target">Target amount (₦)</Label>
+              <Input
+                id="edit-goal-target"
+                type="number"
+                min={100}
+                required
+                className="min-h-12"
+                value={form.targetAmount}
+                onChange={(e) => setForm({ ...form, targetAmount: e.target.value })}
+              />
+            </div>
+            <div className="grid gap-1.5">
+              <Label htmlFor="edit-goal-date">Target date</Label>
+              <Input
+                id="edit-goal-date"
+                type="date"
+                className="min-h-12"
+                value={form.targetDate}
+                onChange={(e) => setForm({ ...form, targetDate: e.target.value })}
+              />
+            </div>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-1.5">
+              <Label>Frequency</Label>
+              <Select
+                value={form.contributionFrequency}
+                onValueChange={(v) => setForm({ ...form, contributionFrequency: v })}
+              >
+                <SelectTrigger className="min-h-12"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {["DAILY", "WEEKLY", "MONTHLY"].map((f) => (
+                    <SelectItem key={f} value={f}>{titleize(f)}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-1.5">
+              <Label htmlFor="edit-goal-contrib">Contribution (₦)</Label>
+              <Input
+                id="edit-goal-contrib"
+                type="number"
+                min={0}
+                className="min-h-12"
+                value={form.contributionAmount}
+                onChange={(e) => setForm({ ...form, contributionAmount: e.target.value })}
+              />
+            </div>
+          </div>
+          <Button type="submit" disabled={busy} className="min-h-12 w-full bg-rfund-700 font-bold text-white hover:bg-rfund-800">
+            {busy ? "Saving…" : "Save changes"}
+          </Button>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export default function GoalsPage() {
   const { data, loading, error, refetch } = useQuery(SAVINGS_GOALS_QUERY);
   const [createOpen, setCreateOpen] = useState(false);
+  const [editing, setEditing] = useState<any | null>(null);
   const [funding, setFunding] = useState<string | null>(null);
   const [fundAmount, setFundAmount] = useState("");
   const [notice, setNotice] = useState<string | null>(null);
@@ -303,6 +436,16 @@ export default function GoalsPage() {
                       Add money
                     </Button>
                   ) : null}
+                  {goal.status === "ACTIVE" ? (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="min-h-10 font-bold"
+                      onClick={() => setEditing(goal)}
+                    >
+                      <Pencil className="mr-1 h-3.5 w-3.5" aria-hidden /> Edit
+                    </Button>
+                  ) : null}
                   {Number(goal.currentAmount) === 0 && goal.status === "ACTIVE" ? (
                     <Button
                       size="sm"
@@ -343,6 +486,9 @@ export default function GoalsPage() {
       )}
 
       <CreateGoalDialog open={createOpen} onOpenChange={setCreateOpen} onCreated={() => refetch()} />
+      {editing ? (
+        <EditGoalDialog goal={editing} open={!!editing} onOpenChange={(v) => !v && setEditing(null)} onSaved={() => refetch()} />
+      ) : null}
     </div>
   );
 }

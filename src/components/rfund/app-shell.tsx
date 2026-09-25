@@ -15,6 +15,7 @@ import { FullPageLoader } from "@/components/rfund/primitives";
 import {
   LayoutDashboard, PiggyBank, Target, Landmark, Receipt, Bell, User,
   LifeBuoy, LogOut, Menu, X, Users, HandCoins, Wallet, ArrowLeftRight,
+  BookOpen, Scale, CreditCard, ShieldAlert, BarChart3, ScrollText, BadgeCheck,
 } from "lucide-react";
 
 export type NavItem = { href: string; label: string; icon: React.ReactNode };
@@ -43,16 +44,16 @@ const AGENT_NAV: NavItem[] = [
 const ADMIN_NAV: NavItem[] = [
   { href: "/admin/dashboard", label: "Dashboard", icon: <LayoutDashboard className="h-4 w-4" /> },
   { href: "/admin/customers", label: "Customers", icon: <Users className="h-4 w-4" /> },
-  { href: "/admin/kyc", label: "KYC", icon: <User className="h-4 w-4" /> },
+  { href: "/admin/kyc", label: "KYC", icon: <BadgeCheck className="h-4 w-4" /> },
   { href: "/admin/loans", label: "Loans", icon: <Landmark className="h-4 w-4" /> },
-  { href: "/admin/payments", label: "Payments", icon: <ArrowLeftRight className="h-4 w-4" /> },
-  { href: "/admin/ledger", label: "Ledger", icon: <Receipt className="h-4 w-4" /> },
-  { href: "/admin/reconciliation", label: "Reconciliation", icon: <Wallet className="h-4 w-4" /> },
+  { href: "/admin/payments", label: "Payments", icon: <CreditCard className="h-4 w-4" /> },
+  { href: "/admin/ledger", label: "Ledger", icon: <BookOpen className="h-4 w-4" /> },
+  { href: "/admin/reconciliation", label: "Reconciliation", icon: <Scale className="h-4 w-4" /> },
   { href: "/admin/agents", label: "Agents", icon: <Users className="h-4 w-4" /> },
-  { href: "/admin/fraud", label: "Fraud", icon: <Bell className="h-4 w-4" /> },
+  { href: "/admin/fraud", label: "Fraud", icon: <ShieldAlert className="h-4 w-4" /> },
   { href: "/admin/support", label: "Support", icon: <LifeBuoy className="h-4 w-4" /> },
-  { href: "/admin/reports", label: "Reports", icon: <Receipt className="h-4 w-4" /> },
-  { href: "/admin/audit", label: "Audit", icon: <Receipt className="h-4 w-4" /> },
+  { href: "/admin/reports", label: "Reports", icon: <BarChart3 className="h-4 w-4" /> },
+  { href: "/admin/audit", label: "Audit", icon: <ScrollText className="h-4 w-4" /> },
 ];
 
 export function AppShell({
