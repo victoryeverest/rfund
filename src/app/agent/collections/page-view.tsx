@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { PageHeader, SectionCard, LoadingState, ErrorState, EmptyState, TransactionItem } from "@/components/rfund/primitives";
-import { AGENT_CUSTOMERS_QUERY, AGENT_DASHBOARD_QUERY, AGENT_CASH_COLLECTION_MUTATION } from "@/graphql/operations";
+import { AGENT_CUSTOMERS_QUERY, AGENT_CUSTOMER_PLANS_QUERY, AGENT_DASHBOARD_QUERY, AGENT_CASH_COLLECTION_MUTATION } from "@/graphql/operations";
 import { extractErrorMessage } from "@/lib/graphql";
 import { formatNaira, formatDateTime } from "@/lib/money";
 import { AlertCircle, HandCoins } from "lucide-react";
@@ -16,6 +16,7 @@ export default function AgentCollectionsPage() {
   const customersQuery = useQuery(AGENT_CUSTOMERS_QUERY, { variables: { first: 100 } });
   const dashboardQuery = useQuery(AGENT_DASHBOARD_QUERY, { fetchPolicy: "cache-and-network" });
   const [customerId, setCustomerId] = useState("");
+  const [planId, setPlanId] = useState("");
   const [amount, setAmount] = useState("1000");
   const [notice, setNotice] = useState<string | null>(null);
   const [opError, setOpError] = useState<string | null>(null);
@@ -24,6 +25,11 @@ export default function AgentCollectionsPage() {
 
   const customers = customersQuery.data?.agentCustomers?.items ?? [];
   const selected = customers.find((c: any) => c.id === customerId);
+  const plansQuery = useQuery(AGENT_CUSTOMER_PLANS_QUERY, {
+    variables: { customerId },
+    skip: !customerId,
+  });
+  const plans = plansQuery.data?.agentCustomerPlans ?? [];
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,6 +44,7 @@ export default function AgentCollectionsPage() {
             customerId,
             amount,
             purpose: "SAVINGS_CONTRIBUTION",
+            targetPlanId: planId || undefined,
             idempotencyKey: `agent-coll-${customerId}-${Date.now()}`,
           },
         },
@@ -90,7 +97,10 @@ export default function AgentCollectionsPage() {
                   required
                   className="min-h-12 rounded-lg border border-rfund-line bg-white px-3 text-base"
                   value={customerId}
-                  onChange={(e) => setCustomerId(e.target.value)}
+                  onChange={(e) => {
+                    setCustomerId(e.target.value);
+                    setPlanId("");
+                  }}
                 >
                   <option value="">Choose customer…</option>
                   {customers.map((c: any) => (
@@ -99,6 +109,34 @@ export default function AgentCollectionsPage() {
                     </option>
                   ))}
                 </select>
+              </div>
+              <div className="grid gap-1.5">
+                <Label htmlFor="coll-plan">Savings plan</Label>
+                <select
+                  id="coll-plan"
+                  className="min-h-12 rounded-lg border border-rfund-line bg-white px-3 text-base"
+                  value={planId}
+                  onChange={(e) => setPlanId(e.target.value)}
+                  disabled={!customerId}
+                >
+                  <option value="">
+                    {customerId
+                      ? plans.length === 1
+                        ? `Auto — ${plans[0].productName} (${plans[0].reference})`
+                        : "Auto — customer's active plan"
+                      : "Choose a customer first"}
+                  </option>
+                  {plans.map((p: any) => (
+                    <option key={p.id} value={p.id}>
+                      {p.productName} · {p.frequency} · {formatNaira(p.amount, { decimals: false })} ({p.reference})
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-muted-foreground">
+                  {plans.length > 1
+                    ? "This customer has several active plans — pick one so the money lands in the right plan."
+                    : "Leave on Auto to credit the customer's active savings plan."}
+                </p>
               </div>
               <div className="grid gap-1.5">
                 <Label htmlFor="coll-amount">Amount received (₦)</Label>

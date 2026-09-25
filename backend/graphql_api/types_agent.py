@@ -30,6 +30,18 @@ class AgentType:
 
 
 @strawberry.type
+class AgentSavingsPlanType:
+    """Brief savings-plan info for plan-targeted agent collections."""
+
+    id: strawberry.ID
+    reference: str
+    product_name: str
+    frequency: str
+    amount: str
+    status: str
+
+
+@strawberry.type
 class AgentTransactionType:
     id: strawberry.ID
     reference: str
@@ -196,6 +208,31 @@ class AgentQueries:
             items=[CustomerType.from_model(c) for c in page.items],
             page_info=page_info(page),
         )
+
+    @strawberry.field
+    def agent_customer_plans(
+        self, info: Info, customer_id: strawberry.ID
+    ) -> list[AgentSavingsPlanType]:
+        """Active savings plans of a customer (for plan-targeted collections)."""
+        user = current_user(info)
+        agent_services.get_agent_by_user(user)
+        customer = customer_services.get_customer(str(customer_id))
+        from apps.savings.models import SavingsPlan
+
+        plans = SavingsPlan.objects.filter(
+            customer=customer, status=SavingsPlan.Status.ACTIVE
+        ).order_by("created_at")
+        return [
+            AgentSavingsPlanType(
+                id=str(p.pk),
+                reference=p.reference,
+                product_name=p.product.name,
+                frequency=p.frequency,
+                amount=str(p.amount),
+                status=p.status,
+            )
+            for p in plans
+        ]
 
     @strawberry.field
     def agent_transactions(

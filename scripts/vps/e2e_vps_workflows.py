@@ -79,6 +79,8 @@ def main():
     target = next((c for c in custs["data"]["agentCustomers"]["items"] if c["phone"] == "+2348012345001"), None)
     check("agent sees customer 5001 in territory", target is not None, json.dumps(custs)[:200])
 
+    import time
+    run_id = str(int(time.time()))
     coll = gql(
         """mutation($i: AgentCashCollectionInput!) {
              agentCashCollection(input: $i) {
@@ -90,7 +92,7 @@ def main():
             "amount": "1500",
             "purpose": "SAVINGS_CONTRIBUTION",
             "targetPlanId": plan["id"],
-            "idempotencyKey": f"vps-e2e-{plan['reference']}-001",
+            "idempotencyKey": f"vps-e2e-{plan['reference']}-{run_id}",
             "deviceFingerprint": "vps-e2e-device-001",
         }},
     )
@@ -110,14 +112,19 @@ def main():
     print(f"        plan {plan['reference']}: {before} -> {plan_after['totalContributed']}")
 
     print("[3] KYC: submit -> review -> verified")
-    sub = gql(
-        "mutation($i: SubmitKYCInput!) { submitKYC(input: $i) { status level failureReason } }",
-        cust3_tok,
-        {"i": {"docType": "NIN", "idNumber": "98765432101"}},
-    )
-    sub_data = (sub.get("data") or {}).get("submitKYC") or {}
-    check("customer 5003 submitted KYC", sub_data.get("status") in
-          {"PENDING", "IN_REVIEW", "SUBMITTED"}, json.dumps(sub)[:400])
+    cur = gql("query { kycStatus { status level verifiedAt } }", cust3_tok)
+    already = cur["data"]["kycStatus"]["status"] in {"VERIFIED", "APPROVED"}
+    if not already:
+        sub = gql(
+            "mutation($i: SubmitKYCInput!) { submitKyc(input: $i) { status level failureReason } }",
+            cust3_tok,
+            {"i": {"docType": "NIN", "idNumber": "98765432101"}},
+        )
+        sub_data = (sub.get("data") or {}).get("submitKyc") or {}
+        check("customer 5003 submitted KYC", sub_data.get("status") in
+              {"PENDING", "IN_REVIEW", "SUBMITTED"}, json.dumps(sub)[:400])
+    else:
+        print("  SKIP  customer 5003 already verified (previous run) — verifying review state")
 
     queue = gql(
         "query { adminKycQueue(first: 30) { items { id customerName status level submittedDocType } } }",
@@ -125,19 +132,20 @@ def main():
     )
     qitems = queue.get("data", {}).get("adminKycQueue", {}).get("items", [])
     profile = next((p for p in qitems if "Funmilayo" in (p.get("customerName") or "")), None)
-    check("KYC officer sees pending profile in queue", profile is not None, json.dumps(queue)[:300])
-
-    if profile is None:
-        check("KYC officer sees pending profile in queue", False, json.dumps(queue)[:400])
-        print(f"\n== RESULT: {PASS_COUNT} passed, {FAIL_COUNT} failed ==")
-        sys.exit(1)
-    rev = gql(
-        "mutation($i: ReviewKycInput!) { reviewKYC(input: $i) }",
-        kyc_tok,
-        {"i": {"profileId": profile["id"], "decision": "APPROVED",
-               "reason": "E2E verification", "newLevel": "STANDARD"}},
-    )
-    check("reviewKYC approved", rev.get("data", {}).get("reviewKYC") is True, json.dumps(rev)[:300])
+    if already and profile is None:
+        print("  PASS  verified customer no longer pending in queue")
+    else:
+        check("KYC officer sees pending profile in queue", profile is not None, json.dumps(queue)[:400])
+        if profile is None:
+            print(f"\n== RESULT: {PASS_COUNT} passed, {FAIL_COUNT} failed ==")
+            sys.exit(1)
+        rev = gql(
+            "mutation($i: ReviewKycInput!) { reviewKyc(input: $i) }",
+            kyc_tok,
+            {"i": {"profileId": profile["id"], "decision": "APPROVED",
+                   "reason": "E2E verification", "newLevel": "STANDARD"}},
+        )
+        check("reviewKyc approved", rev.get("data", {}).get("reviewKyc") is True, json.dumps(rev)[:300])
 
     status = gql("query { kycStatus { status level verifiedAt } }", cust3_tok)
     check("customer 5003 kycStatus VERIFIED",
@@ -147,12 +155,18 @@ def main():
 
     print("[4] Admin sanity")
     dash = gql(
-        "query { adminDashboard { totals { customers agents activePlans } } }", admin_tok
+        """query { adminDashboard {
+               activeCustomers newCustomers7d savingsBalance activeSavingsPlans
+               loanPortfolio activeLoans repaymentVolume30d interestIncome
+               pendingKyc pendingLoanApplications paymentFailures24h
+               reconciliationExceptions activeAgents agentCollectionsToday
+               openFraudAlerts openSupportTickets
+             } }""", admin_tok,
     )
-    if dash.get("errors"):
-        dash = gql("query { adminStats { customers agents savingsPlans } }", admin_tok)
-    check("admin dashboard query", not dash.get("errors"), json.dumps(dash)[:200])
-    print(json.dumps(dash.get("data"))[:220])
+    d = (dash.get("data") or {}).get("adminDashboard") or {}
+    check("admin dashboard query", bool(d), json.dumps(dash)[:300])
+    print(f"        customers={d.get('activeCustomers')} savingsBalance={d.get('savingsBalance')} "
+          f"agents={d.get('activeAgents')} collectionsToday={d.get('agentCollectionsToday')}")
 
     print(f"\n== RESULT: {PASS_COUNT} passed, {FAIL_COUNT} failed ==")
     sys.exit(1 if FAIL_COUNT else 0)

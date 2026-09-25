@@ -293,6 +293,14 @@ export const AGENT_CUSTOMERS_QUERY = gql`
   }
 `;
 
+export const AGENT_CUSTOMER_PLANS_QUERY = gql`
+  query AgentCustomerPlans($customerId: ID!) {
+    agentCustomerPlans(customerId: $customerId) {
+      id reference productName frequency amount status
+    }
+  }
+`;
+
 export const AGENT_CASH_COLLECTION_MUTATION = gql`
   mutation AgentCashCollection($input: AgentCashCollectionInput!) {
     agentCashCollection(input: $input) {

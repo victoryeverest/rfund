@@ -10,7 +10,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   PageHeader, LoadingState, ErrorState, SectionCard, StatusBadge,
 } from "@/components/rfund/primitives";
-import { AGENT_CUSTOMERS_QUERY, AGENT_CASH_COLLECTION_MUTATION, AGENT_PAYOUT_MUTATION } from "@/graphql/operations";
+import { AGENT_CUSTOMERS_QUERY, AGENT_CUSTOMER_PLANS_QUERY, AGENT_CASH_COLLECTION_MUTATION, AGENT_PAYOUT_MUTATION } from "@/graphql/operations";
 import { extractErrorMessage } from "@/lib/graphql";
 import { titleize } from "@/lib/money";
 import { AlertCircle, HandCoins, Banknote } from "lucide-react";
@@ -21,6 +21,7 @@ export default function AgentCustomerPage() {
     variables: { search: "", first: 100 },
   });
   const [amount, setAmount] = useState("1000");
+  const [planId, setPlanId] = useState("");
   const [notice, setNotice] = useState<string | null>(null);
   const [opError, setOpError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -28,6 +29,11 @@ export default function AgentCustomerPage() {
   const [payout] = useMutation(AGENT_PAYOUT_MUTATION);
 
   const customer = (data?.agentCustomers?.items ?? []).find((c: any) => c.id === params.id);
+  const plansQuery = useQuery(AGENT_CUSTOMER_PLANS_QUERY, {
+    variables: { customerId: params.id },
+    skip: !params.id,
+  });
+  const plans = plansQuery.data?.agentCustomerPlans ?? [];
 
   if (loading && !data) return <LoadingState />;
   if (error || !customer)
@@ -42,6 +48,7 @@ export default function AgentCustomerPage() {
       const input = {
         customerId: customer.id,
         amount,
+        targetPlanId: planId || undefined,
         idempotencyKey: `agent-${kind}-${customer.id}-${Date.now()}`,
       };
       const result =
@@ -87,6 +94,31 @@ export default function AgentCustomerPage() {
       <div className="grid gap-6 lg:grid-cols-2">
         <SectionCard title="Collect cash savings">
           <div className="space-y-4">
+            <div className="grid gap-1.5">
+              <Label htmlFor="collect-plan">Savings plan</Label>
+              <select
+                id="collect-plan"
+                className="min-h-12 rounded-lg border border-rfund-line bg-white px-3 text-base"
+                value={planId}
+                onChange={(e) => setPlanId(e.target.value)}
+              >
+                <option value="">
+                  {plans.length === 1
+                    ? `Auto — ${plans[0].productName} (${plans[0].reference})`
+                    : "Auto — active plan"}
+                </option>
+                {plans.map((p: any) => (
+                  <option key={p.id} value={p.id}>
+                    {p.productName} · {p.frequency} · ₦{p.amount} ({p.reference})
+                  </option>
+                ))}
+              </select>
+              {plans.length > 1 ? (
+                <p className="text-xs text-muted-foreground">
+                  Several active plans — pick one so the money lands in the right plan.
+                </p>
+              ) : null}
+            </div>
             <div className="grid gap-1.5">
               <Label htmlFor="collect-amount">Amount received (₦)</Label>
               <Input

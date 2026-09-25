@@ -52,6 +52,59 @@ class TestCashCollection:
         plan.refresh_from_db()
         assert plan.total_contributed == Decimal("1000.00")
 
+    def test_collection_auto_applies_to_sole_active_plan(self, agent, verified_customer):
+        """No explicit target + exactly one ACTIVE plan -> apply automatically."""
+        plan = create_savings_plan(
+            customer=verified_customer,
+            product_code="SAVE_FLEX",
+            amount=Decimal("500"),
+            frequency="DAILY",
+            start_date=date.today(),
+            end_date=date.today() + timedelta(days=10),
+        )
+        txn = agent_services.agent_cash_collection(
+            agent=agent,
+            customer=verified_customer,
+            amount=Decimal("500"),
+            purpose="SAVINGS_CONTRIBUTION",
+        )
+        plan.refresh_from_db()
+        assert txn.target.get("plan_id") == str(plan.pk)
+        assert plan.total_contributed == Decimal("500.00")
+
+    def test_collection_multiple_active_plans_not_auto_applied(self, agent, verified_customer):
+        """Ambiguity guard: several ACTIVE plans and no explicit target ->
+        money is ledgered but no plan is credited."""
+        create_savings_plan(
+            customer=verified_customer,
+            product_code="SAVE_FLEX",
+            amount=Decimal("500"),
+            frequency="DAILY",
+            start_date=date.today(),
+            end_date=date.today() + timedelta(days=10),
+        )
+        plan2 = create_savings_plan(
+            customer=verified_customer,
+            product_code="AJO_DAILY",
+            amount=Decimal("300"),
+            frequency="DAILY",
+            start_date=date.today(),
+            end_date=date.today() + timedelta(days=10),
+        )
+        txn = agent_services.agent_cash_collection(
+            agent=agent,
+            customer=verified_customer,
+            amount=Decimal("500"),
+            purpose="SAVINGS_CONTRIBUTION",
+        )
+        plan2.refresh_from_db()
+        assert not txn.target.get("plan_id")
+        from apps.savings.models import SavingsPlan
+
+        for p in SavingsPlan.objects.filter(customer=verified_customer):
+            assert p.total_contributed == Decimal("0")
+        verify_balances()
+
     def test_idempotent_collection(self, agent, customer):
         t1 = agent_services.agent_cash_collection(
             agent=agent, customer=customer, amount=Decimal("100"), idempotency_key="ag-1"

@@ -229,11 +229,28 @@ def agent_cash_collection(
 def _apply_agent_target(txn: AgentTransaction) -> None:
     """Route agent-collected money to its domain target."""
     target = txn.target or {}
-    if txn.purpose == "SAVINGS_CONTRIBUTION" and target.get("plan_id"):
+    plan_id = target.get("plan_id")
+    if txn.purpose == "SAVINGS_CONTRIBUTION" and not plan_id:
+        # Field agents collect cash against the customer's standing savings
+        # plan. When the customer has exactly one ACTIVE plan, apply the
+        # collection to it automatically; with zero or multiple active plans
+        # the money is ledgered but not attributed — an explicit
+        # target_plan_id (API / agent UI selector) removes the ambiguity.
+        from apps.savings.models import SavingsPlan
+
+        active = SavingsPlan.objects.filter(
+            customer=txn.customer, status=SavingsPlan.Status.ACTIVE
+        )
+        if active.count() == 1:
+            plan_id = str(active.first().pk)
+            target = {**target, "plan_id": plan_id}
+            txn.target = target
+            txn.save(update_fields=["target"])
+    if txn.purpose == "SAVINGS_CONTRIBUTION" and plan_id:
         from apps.savings.models import SavingsContribution, SavingsPlan
         from apps.payments.models import Payment
 
-        plan = SavingsPlan.objects.get(pk=target["plan_id"])
+        plan = SavingsPlan.objects.get(pk=plan_id)
         # Agent collections are recorded like payments for uniform history
         payment = Payment.objects.create(
             reference=next_reference("PAY"),
