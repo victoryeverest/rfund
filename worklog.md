@@ -98,3 +98,32 @@ Stage Summary:
 - Backend: 193/193 on PG, schema extended cleanly, no dangling orphan operations (56→75 frontend ops, all wired to pages).
 - Remaining (user): repo About/topics in GitHub UI (PAT lacks admin write).
 ---
+
+---
+Task ID: 6
+Agent: Super Z (main)
+Task: Deploy RFUND to the client VPS (root@194.5.157.242) — UI on test.inyene.com, API on testapi.inyene.com, Paystack wiring, agent collections + KYC verified, demo logins for admin/agent/merchant/savers. Existing Django+React app on the VPS must not be touched.
+
+Work Log:
+- Recon: existing stack = nginx (default vhost dbug-academy), dockerized PostgreSQL/Redis/Django (dbuglabs), PM2 Next.js :3000, remote_shell :7681. test./testapi.inyene.com were falling through to the default vhost (not explicitly used) → safe to claim via explicit server_name blocks. Both domains are Cloudflare-proxied; origin :80 reachable through CF (nginx body in edge 301) → certbot HTTP-01 viable.
+- SSH: password contained a leading apostrophe ('B9RtCdkEWh.4hY+) — paramiko helper scripts/vps_ssh.py (credentials via env only; debug one-offs deleted; askpass file with password deleted before any commit).
+- Backend on VPS: git clone (public repo), venv (needed apt python3.12-venv — additive install), requirements installed; created rfund_app role + rfund database INSIDE the existing PG container (additive; dbuglabs data untouched); /opt/rfund/rfund.env (600) with generated secrets, ALLOWED_HOSTS/CSRF/CORS for the two domains, Redis db 1, SECURE_SSL_REDIRECT=False (nginx owns redirect; BFF→gunicorn over loopback http).
+- migrate + collectstatic OK; demo logins via new scripts/vps/bootstrap_test_data.py (opt-in RFUND_BOOTSTRAP_DEMO=true; mirrors seed_demo minus fake transactions; tested locally on scratch SQLite first). Admin/KYC officer/agent/3 customers in 3 KYC states + unfunded plans.
+- Frontend on VPS: bun 1.4.2 installed, bun install --frozen-lockfile (837 pkgs), NODE_OPTIONS=--max-old-space-size=2304 bun run build — OK on 1 vCPU/3.8GB.
+- systemd: rfund-backend (gunicorn 127.0.0.1:8010), rfund-celery (worker), rfund-celery-beat (added later), rfund-frontend (node standalone 127.0.0.1:3010, RFUND_BACKEND_URL=http://127.0.0.1:8010). All enabled + active.
+- nginx sites-available/rfund: 80-block (ACME webroot + redirect) + two 443-blocks (per-hostname upstreams, /media/ alias, 25M body). certbot certonly --webroot → LE cert for both domains (renewal deploy-hook reloads nginx). External: https://test.inyene.com 200 RFUND title; https://testapi.inyene.com/health/ready ok (db+redis ok); GraphQL + BFF both responding.
+- BUG FOUND & FIXED #1 (live E2E): frontend called submitKYC/reviewKYC but schema fields are submitKyc/reviewKyc — customer KYC submission and admin review never actually worked. Fixed operations.ts; added scripts/vps/validate_operations.py (validates all 62 gql documents against the real schema — now a deploy checklist item); rebuilt + redeployed.
+- BUG FOUND & FIXED #2 (UI walkthrough): agent collections UI never sent a plan target → money ledgered + receipted but plans never credited. Fixed both ways: backend auto-applies to the customer's sole ACTIVE plan (ambiguity-safe: no attribution with 0/2+ active plans); new agentCustomerPlans query + Savings-plan selector (Auto default) on agent Collections and Customer detail pages. 2 new tests (auto-apply + ambiguity guard). UI-verified end-to-end: collection ₦1000 via UI → customer plan 4500→5500, 9/61→11/61 paid.
+- BUG FOUND & FIXED #3 (deployed ops): apps/core/beat.py was dead config (never imported) — dispatch-outbox/schedules/reconciliation/reminders NEVER ran anywhere (17 undelivered outbox events on the VPS proved it). Refactored to pure BEAT_SCHEDULE dict applied in config/celery_app.py; run_reconciliation task now defaults to settings.PAYMENT_PROVIDER (was hardcoded 'local'); tests/test_beat.py pins the wiring (3 tests). Added rfund-celery-beat systemd unit (flag fix: --schedule not --schedule-file). After deploy: dispatch_outbox succeeded → 17/17 events delivered, sms_sent logs flowing.
+- KYC verified through the actual admin UI (Ibrahim approved with reason → queue empty → API kycStatus VERIFIED/STANDARD).
+- Paystack: adapter fully wired server-side; webhook live at https://testapi.inyene.com/payments/webhooks/paystack; keys are account-specific → /opt/rfund/PAYSTACK_SETUP.md on the VPS documents the 3-step activation (paste sk_test keys in rfund.env, restart, register webhook URL). Until then card payments fail with a clear "not configured" error; agent cash path funds plans.
+- E2E scripts/vps/e2e_vps_workflows.py (rerunnable, state-aware): final run 7/7 PASS — all role logins, collection→plan credit (5500→7000), KYC verified, admin dashboard live (₦8000 collections today).
+- Existing app integrity verified post-deploy: learn.dbughouse.com 200, dbuglabs Django responding, dbuglabs-db connections healthy, shell.dbughouse.com same-as-before (its ttyd 404 is pre-existing backend behavior, identical direct vs CF).
+- Browser verification (agent-browser): customer/agent/admin logins through the real UI, screenshots in download/vps-*.png.
+- docs/DEPLOYMENT.md added to the repo (referenced by settings comments since inception; now real): topology, env template, unit patterns, step-by-step initial deployment, ops notes.
+
+Stage Summary:
+- LIVE: https://test.inyene.com (RFUND UI) + https://testapi.inyene.com (GraphQL API, health green) behind Cloudflare with LE certs; 4 systemd services active; existing co-hosted apps untouched.
+- Demo logins: admin +2348000000000/Admin#2026 · KYC officer +2348000000002/Kyc#2026 · agent/merchant +2348000000100/Agent#2026 · savers +2348012345001-5003/Customer#2026.
+- Three real bugs fixed along the way (KYC mutation casing, agent collection plan targeting, dead celery beat) — each with tests, each deployed + verified live.
+- Remaining (user, ~5 min): paste Paystack TEST keys into /opt/rfund/rfund.env per /opt/rfund/PAYSTACK_SETUP.md and register the webhook URL in the Paystack dashboard.
