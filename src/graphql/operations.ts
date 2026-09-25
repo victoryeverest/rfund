@@ -243,7 +243,7 @@ export const UPDATE_PROFILE_MUTATION = gql`
 
 export const SUBMIT_KYC_MUTATION = gql`
   mutation SubmitKYC($input: SubmitKYCInput!) {
-    submitKYC(input: $input) { status level verifiedAt failureReason }
+    submitKyc(input: $input) { status level verifiedAt failureReason }
   }
 `;
 
@@ -376,7 +376,7 @@ export const ADMIN_KYC_QUEUE_QUERY = gql`
 
 export const ADMIN_REVIEW_KYC_MUTATION = gql`
   mutation ReviewKyc($input: ReviewKycInput!) {
-    reviewKYC(input: $input)
+    reviewKyc(input: $input)
   }
 `;
 
