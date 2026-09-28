@@ -231,3 +231,56 @@ class TestErrorShape:  # spec §54
         assert any(
             isinstance(e.original_error, AuthenticationRequired) for e in result.errors
         )
+
+
+class TestLoanSerialization:  # regression: offer-less applications
+    """Applications without an offer/assessment must serialize cleanly.
+
+    Reverse OneToOne accessors raise RelatedObjectDoesNotExist when the
+    related row is absent — this crashed applyForLoan responses and the
+    customer loanApplications query for every fresh application.
+    """
+
+    @pytest.fixture
+    def verified_user(self, db):
+        from tests.factories import make_customer, verify_kyc
+
+        customer = make_customer("+2348088880041")
+        verify_kyc(customer)
+        return customer.user
+
+    def test_apply_for_loan_returns_application_without_offer(self, verified_user):
+        result = execute(
+            """
+            mutation { applyForLoan(input: { productCode: "TRADER", amount: "25000",
+                termMonths: 6, purpose: "regression" }) {
+                    reference amountRequested state offer { amount } assessment { score } } }
+            """,
+            user=verified_user,
+        )
+        app = data_of(result)["applyForLoan"]
+        assert app["reference"].startswith("RF-LAP-")
+        assert app["state"] == "SUBMITTED"
+        # No offer exists yet -> must serialize as None (regression)
+        assert app["offer"] is None
+        # The risk engine creates an assessment at submission time; it must
+        # serialize (dict) instead of crashing.
+        assert app["assessment"] is None or "score" in app["assessment"]
+
+    def test_customer_loan_applications_query_lists_offerless(self, verified_user):
+        from apps.customers.services import ensure_customer_profile
+        from apps.loans.services import create_loan_application
+
+        create_loan_application(
+            customer=ensure_customer_profile(verified_user),
+            product_code="TRADER",
+            amount="15000",
+            term_months=3,
+        )
+        result = execute(
+            "{ loanApplications(first: 10) { items { reference state offer { amount } } } }",
+            user=verified_user,
+        )
+        items = data_of(result)["loanApplications"]["items"]
+        assert len(items) == 1
+        assert items[0]["offer"] is None

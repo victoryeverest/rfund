@@ -92,22 +92,28 @@ class LoanApplicationType:
 
     @classmethod
     def from_model(cls, a: LoanApplication) -> "LoanApplicationType":
+        # Reverse OneToOne accessors raise RelatedObjectDoesNotExist when the
+        # related row is absent — getattr returns None instead (the exception
+        # subclasses AttributeError), so applications without an offer yet
+        # serialize cleanly.
+        offer_obj = getattr(a, "offer", None)
         offer = None
-        if a.offer:
+        if offer_obj:
             offer = LoanOfferType(
-                amount=str(a.offer.amount),
-                interest_rate=str(a.offer.interest_rate),
-                term_months=a.offer.term_months,
-                total_repayable=str(a.offer.total_repayable),
-                first_payment_date=str(a.offer.first_payment_date),
-                expires_on=str(a.offer.expires_on),
-                status=a.offer.status,
+                amount=str(offer_obj.amount),
+                interest_rate=str(offer_obj.interest_rate),
+                term_months=offer_obj.term_months,
+                total_repayable=str(offer_obj.total_repayable),
+                first_payment_date=str(offer_obj.first_payment_date),
+                expires_on=str(offer_obj.expires_on),
+                status=offer_obj.status,
             )
+        assessment_obj = getattr(a, "assessment", None)
         assessment = None
-        if a.assessment:
+        if assessment_obj:
             assessment = RiskAssessmentType(
-                score=str(a.assessment.score),
-                decision=a.assessment.decision,
+                score=str(assessment_obj.score),
+                decision=assessment_obj.decision,
                 factors=[
                     RiskFactorType(
                         rule=f.rule_code,
@@ -115,7 +121,7 @@ class LoanApplicationType:
                         score=f.score,
                         explanation=f.explanation,
                     )
-                    for f in a.assessment.factors.all()
+                    for f in assessment_obj.factors.all()
                 ],
             )
         return cls(
