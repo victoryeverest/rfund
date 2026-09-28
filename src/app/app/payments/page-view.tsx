@@ -41,6 +41,14 @@ export default function PaymentsPage() {
         return;
       }
       const paymentId = result.data?.makePayment?.payment?.id;
+      // Hosted checkout (Paystack): the customer completes payment on the
+      // provider's page, then lands back on /app/payments/return which
+      // verifies server-side. Local/dev provider: verify immediately.
+      const authorizationUrl = result.data?.makePayment?.authorizationUrl ?? "";
+      if (/^https?:\/\//i.test(authorizationUrl)) {
+        window.location.assign(authorizationUrl);
+        return;
+      }
       const verified = await verifyPayment({ variables: { paymentId } });
       if (verified.errors?.length) {
         setError(extractErrorMessage(verified.errors));

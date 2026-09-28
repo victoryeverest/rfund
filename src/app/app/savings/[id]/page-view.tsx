@@ -66,6 +66,13 @@ export default function SavingsPlanDetailPage() {
         setNotice(null);
         return;
       }
+      // Hosted checkout (Paystack): redirect to the provider's page; the
+      // return page verifies with the server. Local provider: verify now.
+      const authorizationUrl = result.data?.makePayment?.authorizationUrl ?? "";
+      if (/^https?:\/\//i.test(authorizationUrl)) {
+        window.location.assign(authorizationUrl);
+        return;
+      }
       setNotice("We're processing this transaction…");
       const verified = await verifyPayment({ variables: { paymentId } });
       if (verified.errors?.length) {

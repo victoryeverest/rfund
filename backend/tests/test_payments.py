@@ -50,6 +50,37 @@ class TestInitialization:
         assert payment.provider == "local"
         assert url  # authorization URL returned
 
+    def test_callback_url_passed_when_base_configured(self, customer, settings, monkeypatch):
+        """Hosted checkout (Paystack) must redirect back to the UI return page."""
+        settings.PAYMENT_CALLBACK_BASE = "https://test.inyene.com"
+        provider = get_payment_provider("local")
+        captured: dict = {}
+        orig = provider.initialize_payment
+
+        def spy(**kwargs):
+            captured.update(kwargs)
+            return orig(**kwargs)
+
+        monkeypatch.setattr(provider, "initialize_payment", spy)
+        payment, _url = make_paid_payment(customer, key="init-callback-1")
+        assert captured["callback_url"] == (
+            f"https://test.inyene.com/app/payments/return?payment_id={payment.pk}"
+        )
+
+    def test_no_callback_url_when_base_unset(self, customer, settings, monkeypatch):
+        settings.PAYMENT_CALLBACK_BASE = ""
+        provider = get_payment_provider("local")
+        captured: dict = {}
+        orig = provider.initialize_payment
+
+        def spy(**kwargs):
+            captured.update(kwargs)
+            return orig(**kwargs)
+
+        monkeypatch.setattr(provider, "initialize_payment", spy)
+        make_paid_payment(customer, key="init-callback-2")
+        assert captured["callback_url"] == ""
+
     def test_idempotent_initialization(self, customer):
         p1, _ = make_paid_payment(customer, amount="500", key="dup-1")
         p2, _ = make_paid_payment(customer, amount="500", key="dup-1")

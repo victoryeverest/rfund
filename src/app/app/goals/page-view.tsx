@@ -332,6 +332,13 @@ export default function GoalsPage() {
         return;
       }
       const paymentId = result.data?.makePayment?.payment?.id;
+      // Hosted checkout (Paystack): redirect to the provider's page; the
+      // return page verifies with the server. Local provider: verify now.
+      const authorizationUrl = result.data?.makePayment?.authorizationUrl ?? "";
+      if (/^https?:\/\//i.test(authorizationUrl)) {
+        window.location.assign(authorizationUrl);
+        return;
+      }
       const verified = await verifyPayment({ variables: { paymentId } });
       if (verified.errors?.length) {
         setFundError(extractErrorMessage(verified.errors));

@@ -16,6 +16,7 @@ from __future__ import annotations
 import logging
 from decimal import Decimal
 
+from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
 
@@ -112,12 +113,23 @@ def initialize_payment(
         device_id=device_id,
         client_reference=client_reference,
     )
+    # Save first so the payment has a pk for the hosted-checkout return URL.
+    payment.save()
+    # Hosted-checkout providers (Paystack) redirect the customer back to the
+    # web UI after checkout; the return page verifies server-side (§23).
+    callback_url = ""
+    if settings.PAYMENT_CALLBACK_BASE:
+        callback_url = (
+            f"{settings.PAYMENT_CALLBACK_BASE.rstrip('/')}"
+            f"/app/payments/return?payment_id={payment.pk}"
+        )
     try:
         result = provider.initialize_payment(
             reference=payment.reference,
             amount=amount,
             currency=currency,
             email=customer.email or f"{customer.phone[-4:]}@rfund.example",
+            callback_url=callback_url,
             metadata={"internal_reference": payment.reference, "purpose": purpose},
             channels=channels,
         )

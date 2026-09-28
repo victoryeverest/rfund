@@ -63,7 +63,7 @@ class LocalProvider:
             provider_reference=provider_reference,
             authorization_url=f"/payments/local/checkout?ref={provider_reference}",
             status="PENDING",
-            raw={"simulated": True},
+            raw={"simulated": True, "callback_url": callback_url},
         )
 
     def _find(self, provider_reference: str) -> dict:

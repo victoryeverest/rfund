@@ -199,6 +199,9 @@ PAYSTACK_PUBLIC_KEY = env_str("PAYSTACK_PUBLIC_KEY", "")
 PAYSTACK_WEBHOOK_SECRET = env_str("PAYSTACK_WEBHOOK_SECRET", "")
 PAYSTACK_BASE_URL = env_str("PAYSTACK_BASE_URL", "https://api.paystack.co")
 PAYSTACK_TIMEOUT_SECONDS = env_int("PAYSTACK_TIMEOUT_SECONDS", 20)
+# Public base URL of the web UI. When set, hosted-checkout payments (Paystack)
+# redirect the customer back to <base>/app/payments/return after checkout.
+PAYMENT_CALLBACK_BASE = env_str("PAYMENT_CALLBACK_BASE", "")
 
 # The deterministic local provider is for development/test ONLY.
 # It can never be selected in production (spec §102: no accidental demo mode).
