@@ -253,11 +253,12 @@ def stage3():
     p2 = (pay2.get("data") or {}).get("payment") or {}
     check("loan repayment payment SUCCESS", p2.get("status") == "SUCCESS", json.dumps(pay2)[:300])
 
-    loan = gql("query($id: ID!) { loan(id: $id) { reference status totalOutstanding repaymentSchedule(loanId: $id, first: 60) { items { sequence amountPaid status } } } }",
+    loan = gql("query($id: ID!) { loan(id: $id) { reference status totalOutstanding } repaymentSchedule(loanId: $id, first: 60) { items { sequence amountPaid status } } }",
                tok, {"id": state["loan_id"]})
     ln = (loan.get("data") or {}).get("loan") or {}
+    sched = ((loan.get("data") or {}).get("repaymentSchedule") or {}).get("items") or []
     check("loan repayment applied to schedule (₦5,000 card payment)",
-          any(float(i.get("amountPaid") or 0) > 0 for i in ((ln.get("repaymentSchedule") or {}).get("items") or [])),
+          any(float(i.get("amountPaid") or 0) > 0 for i in sched),
           json.dumps(loan)[:400])
 
     print("[C] Admin sees the card payments")
@@ -267,11 +268,12 @@ def stage3():
     mine = [p for p in items if p.get("reference") in (state.get("savings_payment_ref"), state.get("loan_payment_ref"))]
     check("admin payments list shows both card payments", len(mine) >= 2, json.dumps([m.get("reference") for m in mine]))
 
-    led = gql("query { adminLedgerTransactions(first: 30) { items { reference transactionType status entries { accountCode direction amount } } } }", admin_tok)
+    led = gql("query { adminLedgerTransactions(first: 30) { items { reference transactionType status externalReference entries { accountCode direction amount } } } }", admin_tok)
     ltx = ((led.get("data") or {}).get("adminLedgerTransactions") or {}).get("items", [])
-    card_tx = [t for t in ltx if t.get("reference") in (state.get("savings_payment_ref"), state.get("loan_payment_ref"))]
-    check("ledger posted for card payments", len(card_tx) >= 2,
-          json.dumps([t.get("reference") for t in ltx[:6]])[:300])
+    card_refs = {state.get("savings_payment_ref"), state.get("loan_payment_ref")}
+    card_tx = [t for t in ltx if t.get("externalReference") in card_refs]
+    check("ledger posted for card payments (externalReference match)", len(card_tx) >= 2,
+          json.dumps([{'ref': t.get('reference'), 'ext': t.get('externalReference')} for t in ltx[:8]])[:400])
 
     print("[D] Transactions feed (customer)")
     txns = gql("query { payments(first: 10) { items { reference purpose amount status method } } }", tok)
