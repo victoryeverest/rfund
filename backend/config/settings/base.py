@@ -202,6 +202,10 @@ PAYSTACK_TIMEOUT_SECONDS = env_int("PAYSTACK_TIMEOUT_SECONDS", 20)
 # Public base URL of the web UI. When set, hosted-checkout payments (Paystack)
 # redirect the customer back to <base>/app/payments/return after checkout.
 PAYMENT_CALLBACK_BASE = env_str("PAYMENT_CALLBACK_BASE", "")
+# Fallback email domain for phone-only customers. Hosted-checkout providers
+# validate email syntax including the TLD — "rfund.example" is rejected by
+# Paystack, so this must be a real TLD (receipts are best-effort).
+PAYMENT_FALLBACK_EMAIL_DOMAIN = env_str("PAYMENT_FALLBACK_EMAIL_DOMAIN", "example.com")
 
 # The deterministic local provider is for development/test ONLY.
 # It can never be selected in production (spec §102: no accidental demo mode).

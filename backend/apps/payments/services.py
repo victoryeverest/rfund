@@ -128,7 +128,8 @@ def initialize_payment(
             reference=payment.reference,
             amount=amount,
             currency=currency,
-            email=customer.email or f"{customer.phone[-4:]}@rfund.example",
+            email=customer.email
+            or f"{customer.phone[-4:]}@{settings.PAYMENT_FALLBACK_EMAIL_DOMAIN}",
             callback_url=callback_url,
             metadata={"internal_reference": payment.reference, "purpose": purpose},
             channels=channels,

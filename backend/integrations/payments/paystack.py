@@ -75,6 +75,15 @@ class PaystackProvider:
                 provider_code="bad_response",
             ) from exc
         if not response.is_success:
+            logger.warning(
+                "paystack_rejected",
+                extra={
+                    "provider": "paystack",
+                    "error_code": body.get("code") or "provider_error",
+                    "provider_status": str(response.status_code),
+                    "provider_message": str(body.get("message", ""))[:200],
+                },
+            )
             raise PaymentProviderError(
                 "The payment provider rejected the request.",
                 provider_code=body.get("code") or "provider_error",
@@ -104,7 +113,7 @@ class PaystackProvider:
         payload = {
             "reference": reference,
             "amount": int((amount * 100).quantize(Decimal("1"))),  # kobo
-            "email": email or "payments@rfund.example",
+            "email": email or f"payments@{settings.PAYMENT_FALLBACK_EMAIL_DOMAIN}",
             "currency": "NGN",
             "metadata": metadata or {},
         }
