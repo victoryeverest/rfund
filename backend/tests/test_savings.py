@@ -241,6 +241,77 @@ class TestPayouts:  # spec §156 money-movement safety
             request_savings_payout(plan, requested_by=customer.user)
 
 
+class TestCustomerSavingsBalance:
+    """Regression: dashboard 'Money saved' must reflect plan + goal money.
+
+    Savings is pooled in SAVINGS_POOL with per-customer attribution on the
+    domain objects — the balance helper must read those, not per-customer
+    ledger accounts (which do not exist in this design).
+    """
+
+    def _settle(self, customer, purpose, amount, target, key):
+        payment, _ = initialize_payment(
+            customer=customer,
+            purpose=purpose,
+            amount=Decimal(amount),
+            target=target,
+            idempotency_key=key,
+        )
+        return settle_payment(
+            payment,
+            provider_reference=payment.provider_reference,
+            amount=Decimal(amount),
+            currency="NGN",
+            method="CARD",
+        )
+
+    def test_balance_tracks_plan_contributions_and_payout(self, verified_customer):
+        from apps.ledger.services import customer_savings_balance
+
+        assert customer_savings_balance(verified_customer) == Decimal("0.00")
+        plan = make_plan(verified_customer, days=3)
+        self._settle(
+            verified_customer, "SAVINGS_CONTRIBUTION", "1500",
+            {"plan_id": str(plan.pk)}, "bal-contrib-1",
+        )
+        assert customer_savings_balance(verified_customer) == Decimal("1500.00")
+
+        # Payout drains the plan balance -> balance returns to zero.
+        payout = request_savings_payout(plan, requested_by=verified_customer.user)
+        process_savings_payout(payout, approved_by=verified_customer.user)
+        assert customer_savings_balance(verified_customer) == Decimal("0.00")
+
+    def test_balance_includes_goal_funding(self, verified_customer):
+        from apps.ledger.services import customer_savings_balance
+
+        goal = create_goal(
+            customer=verified_customer,
+            name="New shop",
+            target_amount=Decimal("5000"),
+        )
+        self._settle(
+            verified_customer, "GOAL_FUNDING", "2000",
+            {"goal_id": str(goal.pk)}, "bal-goal-1",
+        )
+        assert customer_savings_balance(verified_customer) == Decimal("2000.00")
+
+    def test_balance_excludes_cancelled_goals(self, verified_customer):
+        from apps.ledger.services import customer_savings_balance
+
+        goal = create_goal(
+            customer=verified_customer,
+            name="Cancelled goal",
+            target_amount=Decimal("5000"),
+        )
+        self._settle(
+            verified_customer, "GOAL_FUNDING", "1000",
+            {"goal_id": str(goal.pk)}, "bal-goal-2",
+        )
+        goal.status = SavingsGoal.Status.CANCELLED
+        goal.save(update_fields=["status"])
+        assert customer_savings_balance(verified_customer) == Decimal("0.00")
+
+
 class TestScheduledStatusRefresh:
     def test_due_and_missed_transitions(self, customer):
         plan = make_plan_backdated(customer)

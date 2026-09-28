@@ -438,14 +438,30 @@ def account_balance(code: str) -> Decimal:
 
 
 def customer_savings_balance(customer) -> Decimal:
-    """Sum of the customer's savings-product control accounts (2dp)."""
-    from apps.core.money import money as _money
+    """Current savings held for the customer (2dp).
 
-    total = Decimal("0")
-    accounts = LedgerAccount.objects.filter(holder_customer=customer)
-    for acct in accounts:
-        total += acct.balance
-    return _money(total)
+    Savings money is pooled in the SAVINGS_POOL control account and
+    per-customer attribution is maintained on the domain objects: plan
+    balances (``SavingsPlan.total_contributed`` — decremented by payouts)
+    and goal balances (``SavingsGoal.current_amount``). Summing those is the
+    customer's current, unwithdrawn savings balance.
+    """
+    from django.db.models import Sum
+
+    from apps.savings.models import SavingsGoal, SavingsPlan
+
+    plans_total = (
+        SavingsPlan.objects.filter(customer=customer)
+        .aggregate(total=Sum("total_contributed"))["total"]
+        or Decimal("0")
+    )
+    goals_total = (
+        SavingsGoal.objects.filter(customer=customer)
+        .exclude(status=SavingsGoal.Status.CANCELLED)
+        .aggregate(total=Sum("current_amount"))["total"]
+        or Decimal("0")
+    )
+    return money(plans_total + goals_total)
 
 
 def snapshot_all_balances() -> int:

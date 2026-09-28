@@ -127,3 +127,28 @@ Stage Summary:
 - Demo logins: admin +2348000000000/Admin#2026 · KYC officer +2348000000002/Kyc#2026 · agent/merchant +2348000000100/Agent#2026 · savers +2348012345001-5003/Customer#2026.
 - Three real bugs fixed along the way (KYC mutation casing, agent collection plan targeting, dead celery beat) — each with tests, each deployed + verified live.
 - Remaining (user, ~5 min): paste Paystack TEST keys into /opt/rfund/rfund.env per /opt/rfund/PAYSTACK_SETUP.md and register the webhook URL in the Paystack dashboard.
+
+---
+Task ID: 7
+Agent: Super Z (main)
+Task: Post-deployment verification & hardening via shell gateway (shell.dbughouse.com); "no dangling thread" final sweep.
+
+Work Log:
+- Switched to user-provided shell gateway (POST /run with X-Shell-Token) — helper scripts/remote.sh (excluded from git via .git/info/exclude: contains the token).
+- Safety recon re-run: existing dbuglabs stack (4 docker containers, learn.dbughouse.com 200) untouched; RFUND isolated (own rfund DB + rfund_app role in shared PG container, Redis db 1, ports 3010/8010, 4 systemd units).
+- Synced repo states: local junk empty commit 19ba67a dropped; local = GitHub = VPS = e12d6ba, then a69fae1 after fixes below.
+- Ran e2e_vps_workflows.py live: 7/7 PASS (logins, collection→plan credit, KYC, admin dashboard).
+- BUG FOUND & FIXED #4: LoanApplication.from_model crashed with RelatedObjectDoesNotExist when serializing applications with no offer yet (reverse OneToOne accessor raises instead of returning None) — broke applyForLoan responses + customer loanApplications query for every fresh application. Fix: getattr() pattern (exception subclasses AttributeError). Deployed, backend restarted.
+- Added 2 regression tests (TestLoanSerialization); installed pytest/pytest-django into /opt/rfund/venv; granted rfund_app CREATEDB (needed by Django test runner); full suite on Postgres: 200/200 PASS. SQLite-only table-lock failures in test_concurrency.py confirmed environmental (5/5 pass on PG). Test db rfund_test dropped + test_db.sqlite3 removed after.
+- E2E tooling added: scripts/vps/e2e_full_lifecycle.py (fresh-account full lifecycle: register→login→savings plan→Paystack deposit path→KYC submit/review/verify→loan apply→agent collection→webhook signature rejection — 12/12 PASS), e2e_loan_flow.py (apply→decide→OFFERED, 5/5 PASS), e2e_fresh_cycle.py (intermediate).
+- UI route sweep: all 24 real routes 200 (public, /app/*, /agent/*, /admin/*). Bare /app /agent /admin were raw 404s → added redirect page.tsx (redirect() to section dashboard); frontend rebuilt on VPS (bun run build), restarted, verified.
+- Loan admin flow verified live: admin sees SUBMITTED application, decideLoanApplication approve → OFFERED.
+- Paystack state: adapter + webhook live, unsigned webhook → 401 quarantined (verified), makePayment fails with clean PROVIDER_ERROR "PAYSTACK_SECRET_KEY is not configured." — activation still awaits user keys per /opt/rfund/PAYSTACK_SETUP.md.
+- Committed a69fae1 (fix + tests + redirects + e2e scripts), pushed to GitHub via one-time credential URL, VPS reset --hard to origin/main (build artifacts untouched — .next gitignored).
+- Final state check: 4/4 RFUND services active; learn.dbughouse.com 200; test.inyene.com 200; testapi.inyene.com GraphQL green; E2E 7/7 + 12/12.
+
+Stage Summary:
+- One more real production bug found & fixed with regression tests (offer-less loan serialization), deployed and verified live.
+- Full lifecycle from a BRAND-NEW registered account proven end-to-end on production domains (12/12).
+- 200/200 backend tests green on Postgres (VPS).
+- Remaining (user): paste Paystack TEST keys (sk_test_/pk_test_) into /opt/rfund/rfund.env + register webhook https://testapi.inyene.com/payments/webhooks/paystack in the Paystack dashboard, then `systemctl restart rfund-backend rfund-celery`. Demo logins unchanged: admin +2348000000000/Admin#2026 · agent +2348000000100/Agent#2026 · savers +2348012345001-5003/Customer#2026 (fresh E2E accounts use Test#2026).

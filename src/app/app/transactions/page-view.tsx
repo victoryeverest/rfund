@@ -11,8 +11,9 @@ import {
 import { PAYMENTS_QUERY } from "@/graphql/operations";
 import { formatNaira, formatDateTime, titleize } from "@/lib/money";
 
+// Radix <SelectItem> forbids empty-string values, so "ALL" is the sentinel for "no filter".
 const PURPOSES = [
-  { value: "", label: "All types" },
+  { value: "ALL", label: "All types" },
   { value: "SAVINGS_CONTRIBUTION", label: "Savings" },
   { value: "GOAL_FUNDING", label: "Goals" },
   { value: "LOAN_REPAYMENT", label: "Loan repayment" },
@@ -20,20 +21,25 @@ const PURPOSES = [
 ];
 
 const STATUSES = [
-  { value: "", label: "All statuses" },
+  { value: "ALL", label: "All statuses" },
   { value: "SUCCESS", label: "Successful" },
   { value: "PENDING", label: "Pending" },
   { value: "FAILED", label: "Failed" },
 ];
 
 export default function TransactionsPage() {
-  const [purpose, setPurpose] = useState("");
-  const [status, setStatus] = useState("");
+  const [purpose, setPurpose] = useState("ALL");
+  const [status, setStatus] = useState("ALL");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState<{ after?: string }>({});
 
   const { data, loading, error, refetch, fetchMore } = useQuery(PAYMENTS_QUERY, {
-    variables: { first: 20, after: page.after, purpose: purpose || null, status: status || null },
+    variables: {
+      first: 20,
+      after: page.after,
+      purpose: purpose === "ALL" ? null : purpose,
+      status: status === "ALL" ? null : status,
+    },
     fetchPolicy: "cache-and-network",
   });
 
@@ -91,7 +97,7 @@ export default function TransactionsPage() {
       ) : payments.length === 0 ? (
         <EmptyState
           title="No transactions found."
-          description={search || purpose || status ? "Try clearing the filters." : "Your payments will appear here."}
+          description={search || purpose !== "ALL" || status !== "ALL" ? "Try clearing the filters." : "Your payments will appear here."}
         />
       ) : (
         <div className="space-y-3">

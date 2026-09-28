@@ -195,7 +195,7 @@ export default function HomePage() {
                     <Button asChild size="lg" className="min-h-12 bg-rfund-gold px-8 text-base font-extrabold text-rfund-900 hover:bg-rfund-gold-dark">
                       <Link href="/signup">Start saving</Link>
                     </Button>
-                    <Button asChild size="lg" variant="outline" className="min-h-12 border-white/60 px-8 text-base font-bold text-white hover:bg-white/10">
+                    <Button asChild size="lg" variant="outline" className="min-h-12 border-white/60 bg-transparent px-8 text-base font-bold text-white hover:bg-white/10 hover:text-white">
                       <Link href="/how-it-works">How it works</Link>
                     </Button>
                   </>
