@@ -20,6 +20,15 @@ const STATES = ["", "Abia", "Anambra", "Bauchi", "Bayelsa", "Benue", "Borno", "C
   "Katsina", "Kebbi", "Kogi", "Kwara", "Lagos", "Nasarawa", "Niger", "Ogun", "Ondo", "Osun",
   "Oyo", "Plateau", "Rivers", "Sokoto", "Taraba", "Yobe", "Zamfara"];
 
+// IdentityDocument.DocType (backend apps/identity/models.py).
+const DOC_TYPES = [
+  ["NIN", "National Identity Number (NIN)"],
+  ["BVN", "Bank Verification Number (BVN)"],
+  ["VOTERS_CARD", "Voter's card"],
+  ["DRIVERS_LICENSE", "Driver's licence"],
+  ["PASSPORT", "International passport"],
+] as const;
+
 export default function ProfilePage() {
   const { data, loading, error, refetch } = useQuery(ME_QUERY);
   const [form, setForm] = useState<Record<string, string>>({});
@@ -27,6 +36,11 @@ export default function ProfilePage() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [updateProfile] = useMutation(UPDATE_PROFILE_MUTATION);
+  const [submitKyc] = useMutation(SUBMIT_KYC_MUTATION);
+  const [kycForm, setKycForm] = useState({ docType: "NIN", idNumber: "" });
+  const [kycBusy, setKycBusy] = useState(false);
+  const [kycNotice, setKycNotice] = useState<string | null>(null);
+  const [kycError, setKycError] = useState<string | null>(null);
 
   useEffect(() => {
     if (data?.me) {
@@ -73,6 +87,34 @@ export default function ProfilePage() {
       setSaveError("RFUND is not reachable right now.");
     } finally {
       setBusy(false);
+    }
+  };
+
+  const submitIdentity = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setKycBusy(true);
+    setKycNotice(null);
+    setKycError(null);
+    try {
+      const result = await submitKyc({
+        variables: { input: { docType: kycForm.docType, idNumber: kycForm.idNumber.trim() } },
+      });
+      if (result.errors?.length) {
+        setKycError(extractErrorMessage(result.errors));
+        return;
+      }
+      const status = result.data?.submitKyc?.status;
+      setKycNotice(
+        status === "VERIFIED"
+          ? "Identity verified — you now have full access to savings and loans."
+          : "Submitted. Our team reviews identity documents — you will be notified, and nothing is blocked meanwhile."
+      );
+      setKycForm({ docType: "NIN", idNumber: "" });
+      await refetch();
+    } catch {
+      setKycError("RFUND is not reachable right now. Your submission was not sent.");
+    } finally {
+      setKycBusy(false);
     }
   };
 
@@ -179,6 +221,60 @@ export default function ProfilePage() {
           </Button>
         </form>
       </SectionCard>
+
+      {kyc && !["VERIFIED", "PENDING", "UNDER_REVIEW"].includes(kyc.status ?? "") ? (
+        <div className="mt-6">
+          <SectionCard title="Verify your identity">
+            <p className="mb-4 text-sm leading-relaxed text-muted-foreground">
+              Verifying your identity unlocks higher savings limits and loan offers. Pick a document
+              you own — a National Identity Number or BVN is fastest.
+            </p>
+            <form onSubmit={submitIdentity} className="space-y-4">
+              {kycError ? (
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" aria-hidden />
+                  <AlertDescription>{kycError}</AlertDescription>
+                </Alert>
+              ) : null}
+              {kycNotice ? (
+                <Alert className="border-rfund-500/40 bg-rfund-100">
+                  <AlertDescription className="font-semibold text-rfund-900">{kycNotice}</AlertDescription>
+                </Alert>
+              ) : null}
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="grid gap-1.5">
+                  <Label>Document type</Label>
+                  <Select value={kycForm.docType} onValueChange={(v) => setKycForm({ ...kycForm, docType: v })}>
+                    <SelectTrigger className="min-h-12"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {DOC_TYPES.map(([value, label]) => (
+                        <SelectItem key={value} value={value}>{label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid gap-1.5">
+                  <Label htmlFor="kyc-id-number">Identity number</Label>
+                  <Input
+                    id="kyc-id-number"
+                    className="min-h-12"
+                    required
+                    minLength={6}
+                    placeholder="e.g. 23456789012"
+                    value={kycForm.idNumber}
+                    onChange={(e) => setKycForm({ ...kycForm, idNumber: e.target.value })}
+                  />
+                </div>
+              </div>
+              <Button type="submit" disabled={kycBusy || kycForm.idNumber.trim().length < 6}
+                className="min-h-12 bg-rfund-700 font-bold text-white hover:bg-rfund-800">
+                <ShieldCheck className="mr-2 h-4 w-4" aria-hidden />
+                {kycBusy ? "Submitting…" : "Submit for verification"}
+              </Button>
+            </form>
+          </SectionCard>
+        </div>
+      ) : null}
     </div>
   );
 }
