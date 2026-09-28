@@ -26,7 +26,10 @@ export default function AdminAgentsPage() {
 
   const agents = data?.adminAgents?.items ?? [];
   const settlements = data?.adminAgentSettlements ?? [];
-  const pendingSettlements = settlements.filter((s: any) => s.status === "REQUESTED" || s.status === "PENDING");
+  // Awaiting action: the domain enum is SETTLEMENT_REQUESTED (agent model);
+  // keep REQUESTED/PENDING as legacy safety in case of older rows.
+  const pendingSettlements = settlements.filter((s: any) =>
+    ["SETTLEMENT_REQUESTED", "UNDER_REVIEW", "REQUESTED", "PENDING"].includes(s.status));
 
   const changeStatus = async (agentId: string, status: string) => {
     const reason =
@@ -165,7 +168,7 @@ export default function AdminAgentsPage() {
                             {s.settledAt ? formatDateTime(s.settledAt) : "—"}
                           </td>
                           <td className="py-2">
-                            {s.status === "REQUESTED" || s.status === "PENDING" ? (
+                            {["SETTLEMENT_REQUESTED", "UNDER_REVIEW", "REQUESTED", "PENDING"].includes(s.status) ? (
                               <Button
                                 size="sm"
                                 className="min-h-9 bg-rfund-700 font-bold text-white hover:bg-rfund-800"

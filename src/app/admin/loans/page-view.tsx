@@ -17,7 +17,10 @@ import { extractErrorMessage } from "@/lib/graphql";
 import { formatNaira, formatDateTime, titleize } from "@/lib/money";
 import { AlertCircle } from "lucide-react";
 
-const STATES = ["", "PENDING", "APPROVED", "OFFERED", "REJECTED", "DISBURSED"];
+// LoanApplication.State enum (backend apps/loans/models.py).
+const STATES = ["", "SUBMITTED", "UNDER_REVIEW", "VERIFICATION_REQUIRED", "APPROVED", "OFFERED", "ACCEPTED", "REJECTED"];
+// States an officer can decide on (approve_application / reject_application).
+const DECIDABLE = ["SUBMITTED", "UNDER_REVIEW", "VERIFICATION_REQUIRED", "PENDING"];
 
 export default function AdminLoansPage() {
   const [state, setState] = useState("");
@@ -59,7 +62,7 @@ export default function AdminLoansPage() {
     await refetch();
   };
 
-  const pending = apps.filter((a: any) => a.state === "PENDING").length;
+  const pending = apps.filter((a: any) => DECIDABLE.includes(a.state)).length;
   const approved = apps.filter((a: any) => a.state === "APPROVED").length;
 
   return (
@@ -118,7 +121,7 @@ export default function AdminLoansPage() {
                 <span>Risk decision: <strong className="text-rfund-900">{app.riskDecision ?? "—"}</strong></span>
                 <span>Submitted {formatDateTime(app.createdAt)}</span>
               </div>
-              {app.state === "PENDING" ? (
+              {DECIDABLE.includes(app.state) ? (
                 <>
                   <Textarea
                     className="mt-3 min-h-20"
