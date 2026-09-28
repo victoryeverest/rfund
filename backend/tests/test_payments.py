@@ -52,32 +52,34 @@ class TestInitialization:
 
     def test_callback_url_passed_when_base_configured(self, customer, settings, monkeypatch):
         """Hosted checkout (Paystack) must redirect back to the UI return page."""
+        from integrations.payments.local import LocalProvider
+
         settings.PAYMENT_CALLBACK_BASE = "https://test.inyene.com"
-        provider = get_payment_provider("local")
         captured: dict = {}
-        orig = provider.initialize_payment
+        orig = LocalProvider.initialize_payment
 
-        def spy(**kwargs):
+        def spy(self, **kwargs):
             captured.update(kwargs)
-            return orig(**kwargs)
+            return orig(self, **kwargs)
 
-        monkeypatch.setattr(provider, "initialize_payment", spy)
+        monkeypatch.setattr(LocalProvider, "initialize_payment", spy)
         payment, _url = make_paid_payment(customer, key="init-callback-1")
         assert captured["callback_url"] == (
             f"https://test.inyene.com/app/payments/return?payment_id={payment.pk}"
         )
 
     def test_no_callback_url_when_base_unset(self, customer, settings, monkeypatch):
+        from integrations.payments.local import LocalProvider
+
         settings.PAYMENT_CALLBACK_BASE = ""
-        provider = get_payment_provider("local")
         captured: dict = {}
-        orig = provider.initialize_payment
+        orig = LocalProvider.initialize_payment
 
-        def spy(**kwargs):
+        def spy(self, **kwargs):
             captured.update(kwargs)
-            return orig(**kwargs)
+            return orig(self, **kwargs)
 
-        monkeypatch.setattr(provider, "initialize_payment", spy)
+        monkeypatch.setattr(LocalProvider, "initialize_payment", spy)
         make_paid_payment(customer, key="init-callback-2")
         assert captured["callback_url"] == ""
 
