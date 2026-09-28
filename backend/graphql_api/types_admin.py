@@ -121,10 +121,14 @@ class AdminLoanApplicationType:
     risk_score: str | None
     risk_decision: str | None
     created_at: str
+    loan_reference: str | None
+    loan_status: str | None
 
     @classmethod
     def from_model(cls, a: LoanApplication) -> "AdminLoanApplicationType":
         assessment = getattr(a, "assessment", None)
+        # Reverse OneToOne raises when absent — getattr pattern (see fix #4).
+        loan = getattr(a, "loan", None)
         return cls(
             id=strawberry.ID(str(a.pk)),
             reference=a.reference,
@@ -137,6 +141,8 @@ class AdminLoanApplicationType:
             risk_score=str(assessment.score) if assessment else None,
             risk_decision=assessment.decision if assessment else None,
             created_at=str(a.created_at),
+            loan_reference=loan.reference if loan else None,
+            loan_status=loan.status if loan else None,
         )
 
 

@@ -147,14 +147,23 @@ export default function AdminLoansPage() {
                   </div>
                 </>
               ) : app.state === "OFFERED" || app.state === "ACCEPTED" ? (
-                <div className="mt-3">
-                  <Button
-                    className="min-h-11 bg-rfund-gold font-extrabold text-rfund-900 hover:bg-rfund-gold-dark"
-                    onClick={() => disburse(app.id)}
-                  >
-                    Disburse funds
-                  </Button>
-                </div>
+                app.loanReference ? (
+                  <div className="mt-3 flex flex-wrap items-center gap-3 rounded-lg border border-rfund-line bg-rfund-100/60 p-3 text-sm">
+                    <StatusBadge status={app.loanStatus ?? "ACTIVE"} />
+                    <span className="text-muted-foreground">
+                      Disbursed — loan <strong className="font-mono text-xs text-rfund-900">{app.loanReference}</strong> is live.
+                    </span>
+                  </div>
+                ) : (
+                  <div className="mt-3">
+                    <Button
+                      className="min-h-11 bg-rfund-gold font-extrabold text-rfund-900 hover:bg-rfund-gold-dark"
+                      onClick={() => disburse(app.id)}
+                    >
+                      Disburse funds
+                    </Button>
+                  </div>
+                )
               ) : null}
             </SectionCard>
           ))}

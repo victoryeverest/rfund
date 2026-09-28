@@ -393,7 +393,7 @@ export const ADMIN_LOAN_APPLICATIONS_QUERY = gql`
     adminLoanApplications(state: $state, first: 30) {
       items {
         id reference customerName customerReference productName amountRequested
-        termMonths state riskScore riskDecision createdAt
+        termMonths state riskScore riskDecision createdAt loanReference loanStatus
       }
       pageInfo { totalCount hasNextPage nextCursor }
     }
